@@ -1,0 +1,21 @@
+# ── 仿真产物 ──
+sim/*.vcd
+sim/*.log
+sim/iverilog/frames.rgb
+sim/iverilog/*.bin
+*.out
+*.vvp
+*.fst
+
+# ── 早期的 BMP 预览（同内容已有 PNG）──
+preview/*.bmp
+
+# ── Python ──
+__pycache__/
+*.pyc
+
+# ── 编辑器 / 系统 ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

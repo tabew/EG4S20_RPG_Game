@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字界远征 · EG4S20 仿真器</title>
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#161a20; --line:#2a3038; --tx:#d7dce3; --dim:#78828f;
+    --acc:#7ee787; --warn:#ffd166; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--tx);font-family:"Cascadia Mono",Consolas,monospace;
+       font-size:13px;display:flex;justify-content:center;padding:18px}
+  .wrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+  .screen{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#000;
+          line-height:0}
+  canvas{width:640px;height:480px;image-rendering:pixelated;display:block}
+  .panel{width:330px;background:var(--panel);border:1px solid var(--line);border-radius:6px;
+         padding:12px 14px}
+  h2{font-size:11px;font-weight:400;color:var(--dim);letter-spacing:.14em;margin:10px 0 6px;
+     text-transform:uppercase}
+  h2:first-child{margin-top:0}
+  .row{display:flex;justify-content:space-between;font-size:12px;line-height:1.7}
+  .row .k{color:var(--dim)}
+  .row .v{color:var(--tx)}
+  .scene{color:var(--acc);font-size:13px}
+  #trace{height:150px;overflow-y:auto;font-size:11px;line-height:1.55;color:var(--dim);
+         background:#101318;border:1px solid var(--line);border-radius:4px;padding:6px 8px;
+         white-space:pre}
+  #log{height:96px;overflow-y:auto;font-size:11px;line-height:1.55;color:var(--warn);
+       background:#101318;border:1px solid var(--line);border-radius:4px;padding:6px 8px;
+       white-space:pre-wrap}
+  .keys{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  button{background:#1d232b;color:var(--tx);border:1px solid var(--line);border-radius:5px;
+         padding:9px 6px;font-family:inherit;font-size:12px;cursor:pointer;text-align:left}
+  button:hover{background:#252d37;border-color:#3d4753}
+  button:active{background:#2f3a46}
+  button b{color:var(--warn);font-weight:400;margin-right:6px}
+  .hint{color:#5b6472;font-size:11px;margin-top:10px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="screen"><canvas id="cv" width="640" height="480"></canvas></div>
+  <div class="panel">
+    <h2>处理器状态</h2>
+    <div class="row"><span class="k">场景 scene</span><span class="v scene" id="s_scene">-</span></div>
+    <div class="row"><span class="k">状态机 state</span><span class="v" id="s_state">-</span></div>
+    <div class="row"><span class="k">指令指针 pc</span><span class="v" id="s_pc">-</span></div>
+    <div class="row"><span class="k">格子写入</span><span class="v" id="s_wr">0 次</span></div>
+
+    <h2>角色寄存器</h2>
+    <div class="row"><span class="k">HP / MP</span><span class="v" id="s_hp">-</span></div>
+    <div class="row"><span class="k">ATK / DEF</span><span class="v" id="s_atk">-</span></div>
+    <div class="row"><span class="k">等级 / 经验</span><span class="v" id="s_lv">-</span></div>
+    <div class="row"><span class="k">金币 / 药水</span><span class="v" id="s_gold">-</span></div>
+    <div class="row"><span class="k">区域 / 讨伐</span><span class="v" id="s_area">-</span></div>
+
+    <h2>敌人寄存器</h2>
+    <div class="row"><span class="k">名字 / HP</span><span class="v" id="s_enemy">-</span></div>
+    <div class="row"><span class="k">ATK / DEF</span><span class="v" id="s_eatk">-</span></div>
+
+    <h2>指令流（最近 12 条）</h2>
+    <div id="trace"></div>
+
+    <h2>事件日志</h2>
+    <div id="log"></div>
+
+    <h2>板载按键</h2>
+    <div class="keys">
+      <button onclick="press(0)"><b>1</b><span id="k0">探索</span></button>
+      <button onclick="press(1)"><b>2</b><span id="k1">商店</span></button>
+      <button onclick="press(2)"><b>3</b><span id="k2">休息</span></button>
+      <button onclick="press(3)"><b>4</b><span id="k3">首领</span></button>
+    </div>
+    <div class="hint">直接按键盘 1 2 3 4 也可以。这是跑 FPGA 用的同一套 ROM 和同一套状态机，
+      屏幕内容与上板后 HDMI 输出一致。</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ===== 由 tools/build_player.py 注入的资源（与 rtl/gen/*.hex 完全一致） ===== */
+const ROM = __DATA__;
+// 字符 -> 字形码（JSON 里存的是表，这里补一个查表函数）
+ROM.cid = function (ch) { const c = ROM.cidMap[ch]; return (c === undefined) ? 0 : c; };
+
+const COLS = 40, ROWS = 30;
+const cells = new Uint16Array(COLS * ROWS);
+let writeCount = 0;
+
+/* ---------------- 游戏寄存器（对应 rpg_core.v） ---------------- */
+const G = {
+  scene: 0, cls: 0,
+  hp: 130, maxhp: 130, mp: 40, maxmp: 40,
+  atk: 13, def: 9, wb: 0, ab: 0,
+  gold: 40, lv: 1, pot: 2, potxl: 0,
+  exp: 0, need: 24, area: 0, kills: 0, bossDead: 0,
+  eid: 0, ehp: 36, emaxhp: 36, eatk: 8, edef: 2, eexp: 9, egold: 7,
+  eBoss: 0, eSpr: 0, lastDmg: 0, msg: 0
+};
+const SC = { TITLE:0, CLASS:1, MAP:2, BATTLE:3, SHOP:4, DEAD:5, WIN:6 };
+const SCENE_NAME = ["标题","选职业","地图","战斗","商店","死亡","通关"];
+const CLS_NAME = ["剑士","法师","游侠"];
+const MUL_Q6 = [122, 134, 112], ARM_Q6 = [38, 26, 64], SK_COST = [10, 14, 12];
+
+const atkT = () => G.atk + G.wb;
+const defT = () => G.def + G.ab;
+const R = (n) => (Math.random() * n) | 0;
+
+/* ---------------- 渲染器：执行界面指令 ---------------- */
+let trace = [];
+function put(x, y, code, fg, bg) {
+  if (x >= 0 && x < COLS && y >= 0 && y < ROWS)
+    cells[y * COLS + x] = ((bg & 15) << 12) | ((fg & 15) << 8) | (code & 255);
+}
+function decodeStr(addr) {
+  let s = "", a = addr;
+  while (a < ROM.str.length) {
+    const c = ROM.str[a++];
+    if (c === 255) break;
+    s += (ROM.charOf[c] || "?");
+  }
+  return s;
+}
+const OPS = ["END","CLEAR","COLOR","TEXT","NUM","ART","BAR","ENAME","ANAME","MSG","FRAME"];
+
+function renderScene() {
+  writeCount = 0;
+  trace = [];
+  let pc = ROM.screens[G.scene], fg = 3, bg = 0, guard = 0;
+  while (guard++ < 4000) {
+    const w = ROM.cmd[pc++];
+    const op = (w >>> 28) & 15, cy = (w >>> 23) & 31, cx = (w >>> 17) & 63, arg = w & 0x1FFFF;
+    if (op === 0) { trace.push("END"); break; }
+
+    if (op === 1) {                                   // CLEAR
+      bg = arg & 15; fg = 3;
+      cells.fill((bg & 15) << 12); writeCount += COLS * ROWS;
+      trace.push("CLEAR bg=" + bg);
+    } else if (op === 2) {                            // COLOR
+      fg = arg & 15; bg = (arg >> 4) & 15;
+      trace.push("COLOR fg=" + fg + " bg=" + bg);
+    } else if (op === 3) {                            // TEXT
+      const s = decodeStr(arg);
+      for (let i = 0; i < s.length; i++) put(cx + i, cy, ROM.cid(s[i]), fg, bg);
+      trace.push(`TEXT x=${cx} y=${cy} "${s}"`);
+    } else if (op === 4) {                            // NUM
+      const src = arg & 15, dg = (arg >> 8) & 15;
+      let v = srcVal(src), s = String(v);
+      if (s.length > dg) s = s.slice(-dg);
+      for (let i = 0; i < s.length; i++)
+        put(cx + i, cy, ROM.digBase + (+s[i]), fg, bg);
+      trace.push(`NUM x=${cx} y=${cy} src=${src} =${v}`);
+    } else if (op === 5) {                            // ART
+      let spr = (arg & 255);
+      if (spr === 255) spr = G.eSpr;
+      else if (spr === 254) spr = 30 + G.area;
+      const base = ROM.artBase[spr] | 0;
+      const afg = ROM.artColor[spr] !== undefined ? ROM.artColor[spr] : 3;
+      for (let r = 0; r < 9; r++)
+        for (let c = 0; c < 12; c++)
+          put(cx + c, cy + r, ROM.art[base + r * 12 + c] | 0, afg, bg);
+      trace.push(`ART x=${cx} y=${cy} 精灵#${spr}`);
+    } else if (op === 6) {                            // BAR
+      const cur = srcVal(arg & 15), w = (arg >> 8) & 31;
+      const mx = barMax((arg >> 4) & 15);
+      const n = mx === 0 ? 0 : Math.min(w, Math.floor(cur * w / mx));
+      for (let i = 0; i < w; i++) put(cx + i, cy, i < n ? 1 : 2, fg, bg);
+      trace.push(`BAR x=${cx} y=${cy} ${cur}/${mx} 宽${w}`);
+    } else if (op === 7) {                            // ENAME
+      const n = ROM.enemyName[G.eid] || "";
+      for (let i = 0; i < 7; i++) put(cx + i, cy, n[i] ? ROM.cid(n[i]) : 0, fg, bg);
+      trace.push(`ENAME x=${cx} y=${cy} "${n}"`);
+    } else if (op === 8) {                            // ANAME
+      const n = ROM.areaName[G.area] || "";
+      for (let i = 0; i < 6; i++) put(cx + i, cy, n[i] ? ROM.cid(n[i]) : 0, fg, bg);
+      trace.push(`ANAME x=${cx} y=${cy} "${n}"`);
+    } else if (op === 9) {                            // MSG
+      const s = decodeStr(G.msg);
+      for (let i = 0; i < s.length; i++) put(cx + i, cy, ROM.cid(s[i]), fg, bg);
+      trace.push(`MSG x=${cx} y=${cy} "${s}"`);
+    } else if (op === 10) {                           // FRAME
+      const w = arg & 63, h = (arg >> 8) & 31;
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+        const border = (j === 0 || j === h - 1 || i === 0 || i === w - 1);
+        if (!border) continue;
+        let g;
+        if (j === h - 1) g = (i === 0) ? 10 : (i === w - 1) ? 11 : 6;
+        else if (j === 0) g = (i === 0) ? 8 : (i === w - 1) ? 9 : 6;
+        else g = 7;
+        put(cx + i, cy + j, g, fg, bg);
+      }
+      trace.push(`FRAME x=${cx} y=${cy} ${w}x${h}`);
+    }
+  }
+  if (trace.length > 12) trace = trace.slice(-12);
+}
+function srcVal(s) {
+  switch (s) {
+    case 0: return G.hp;   case 1: return G.maxhp;
+    case 2: return G.mp;   case 3: return G.maxmp;
+    case 4: return atkT(); case 5: return defT();
+    case 6: return G.gold; case 7: return G.lv;
+    case 8: return G.exp;  case 9: return G.need;
+    case 10: return G.pot; case 11: return G.potxl;
+    case 12: return G.kills; case 13: return G.ehp;
+    case 14: return G.emaxhp; case 15: return G.lastDmg;
+    default: return 0;
+  }
+}
+function barMax(s) {
+  switch (s) {
+    case 1: return G.maxhp; case 3: return G.maxmp;
+    case 9: return G.need;  case 13: case 14: return G.emaxhp;
+    default: return 100;
+  }
+}
+
+/* ---------------- 伤害公式（与 rpg_core.v 一致） ---------------- */
+function varM() { return 56 + R(16); }
+function pDmg() {
+  const a = atkT(), d = G.edef >> 1;
+  const base = a > d ? a - d : 1;
+  return (base * varM()) >> 6;
+}
+function skDmg() {
+  const sa = (atkT() * MUL_Q6[G.cls]) >> 6;
+  const sd = (G.edef * ARM_Q6[G.cls]) >> 6;
+  const base = sa > (sd >> 1) ? sa - (sd >> 1) : 1;
+  return Math.min((base * varM()) >> 6, 999);
+}
+function eDmg() {
+  const d = defT() >> 1;
+  const base = G.eatk > d ? G.eatk - d : 1;
+  return (base * varM()) >> 6;
+}
+
+/* ---------------- 游戏流程 ---------------- */
+let logLines = [];
+function L(t) { logLines.push(t); if (logLines.length > 60) logLines.shift(); }
+
+function loadEnemy(id) {
+  const e = ROM.enemies[id];
+  G.eid = id;
+  G.ehp = G.emaxhp = e.hp;
+  G.eatk = e.atk; G.edef = e.def;
+  G.eexp = e.exp; G.egold = e.gold;
+  G.eSpr = e.spr; G.eBoss = e.boss;
+}
+function mobOf() {
+  const a = ROM.areas[G.area];
+  return Math.random() < 0.5 ? a.mob0 : a.mob1;
+}
+function bossOf() { return ROM.areas[G.area].boss; }
+
+function startBattle(id) {
+  loadEnemy(id);
+  G.scene = SC.BATTLE;
+  G.lastDmg = 0;
+  G.msg = ROM.msgs.MSG_HIT;
+  L((ROM.enemies[id].boss ? "【" + ROM.enemyName[id] + "】挡住了去路" : "遭遇 " + ROM.enemyName[id]));
+}
+function backToMap() { G.scene = SC.MAP; }
+
+function afterEnemyDead() {
+  G.gold += G.egold;
+  G.exp += G.eexp;
+  G.kills = Math.min(G.kills + 1, 15);
+  if (G.eBoss) G.bossDead = 1;
+  L("击败 " + ROM.enemyName[G.eid] + "，+" + G.eexp + " 经验 +" + G.egold + " 金");
+  while (G.exp >= G.need) {
+    G.exp -= G.need;
+    G.need = ((G.need * 3) >> 1) + 8;
+    G.lv++; G.maxhp += 26; G.maxmp += 8; G.atk += 4; G.def += 2;
+    G.hp = G.maxhp; G.mp = G.maxmp;
+    L("★ 升级！Lv." + G.lv + "，HP/MP 全满");
+  }
+  backToMap();
+}
+
+/* ---------------- 按键处理（对应 rpg_core.v 的 case(scene)） ---------------- */
+function press(k) {
+  if (G.scene === SC.TITLE) {
+    G.scene = SC.CLASS; L("选择职业");
+  } else if (G.scene === SC.CLASS) {
+    const c = k === 1 ? 1 : (k === 2 ? 2 : 0);
+    G.cls = c;
+    const t = [[130,40,13,9],[92,90,11,5],[106,56,11,7]][c];
+    G.maxhp = G.hp = t[0]; G.maxmp = G.mp = t[1];
+    G.atk = t[2]; G.def = t[3];
+    G.gold = 40; G.lv = 1; G.exp = 0; G.need = 24;
+    G.pot = 2; G.potxl = 0; G.wb = 0; G.ab = 0;
+    G.area = 0; G.kills = 0; G.bossDead = 0;
+    G.scene = SC.MAP; L("你成为了" + CLS_NAME[c]);
+  } else if (G.scene === SC.MAP) {
+    if (k === 0) {
+      startBattle(mobOf());
+    } else if (k === 1) {
+      G.scene = SC.SHOP; L("进入补给站");
+    } else if (k === 2) {
+      if (G.gold >= 10) {
+        G.gold -= 10;
+        const add = ((G.maxhp * 11) >> 4) + 15;
+        G.hp = Math.min(G.hp + add, G.maxhp);
+        G.mp = Math.min(G.mp + (G.maxmp >> 1), G.maxmp);
+        L("休息好了，-10 金，HP +" + add);
+      }
+    } else if (k === 3) {
+      if (G.bossDead) {
+        if (G.area === 4) { G.scene = SC.WIN; L("通关！"); }
+        else { G.area++; G.kills = 0; G.bossDead = 0; L("进入 " + ROM.areaName[G.area]); }
+      } else if (G.kills >= 4) {
+        startBattle(bossOf());
+      } else {
+        L("讨伐 " + G.kills + "/4，还不够");
+      }
+    }
+  } else if (G.scene === SC.BATTLE) {
+    if (k === 0) {
+      G.lastDmg = pDmg(); G.ehp = Math.max(0, G.ehp - G.lastDmg);
+      G.msg = ROM.msgs.MSG_HIT;
+      L("你攻击，造成 " + G.lastDmg + " 点伤害");
+      enemyTurn();
+    } else if (k === 1) {
+      if (G.mp >= SK_COST[G.cls]) {
+        G.mp -= SK_COST[G.cls];
+        G.lastDmg = skDmg(); G.ehp = Math.max(0, G.ehp - G.lastDmg);
+        G.msg = ROM.msgs.MSG_SKILL;
+        L("技能发动，造成 " + G.lastDmg + " 点伤害");
+        enemyTurn();
+      } else { G.msg = ROM.msgs.MSG_NOMANA; L("魔力不足"); }
+    } else if (k === 2) {
+      if (G.potxl > 0) {
+        G.potxl--; G.hp = Math.min(G.hp + 130, G.maxhp);
+        G.msg = ROM.msgs.MSG_POTION; L("喝下大药水");
+        enemyTurn();
+      } else if (G.pot > 0) {
+        G.pot--; G.hp = Math.min(G.hp + 50, G.maxhp);
+        G.msg = ROM.msgs.MSG_POTION; L("喝下药水");
+        enemyTurn();
+      } else { G.msg = ROM.msgs.MSG_NOPOT; L("没有药水"); }
+    } else if (k === 3) {
+      if (R(16) < 10) {
+        G.msg = ROM.msgs.MSG_FLEE; L("逃脱成功");
+        backToMap();
+      } else {
+        G.msg = ROM.msgs.MSG_FAIL; L("逃跑失败");
+        enemyTurn();
+      }
+    }
+  } else if (G.scene === SC.SHOP) {
+    if (k === 0 && G.gold >= 20) { G.gold -= 20; G.pot++; L("买了药水"); }
+    else if (k === 1 && G.gold >= 48) { G.gold -= 48; G.potxl++; L("买了大药水"); }
+    else if (k === 2 && G.gold >= 100) { G.gold -= 100; G.atk += 3; G.def += 2; L("强化了装备"); }
+    else if (k === 3) { backToMap(); }
+  } else if (G.scene === SC.DEAD) {
+    G.hp = G.maxhp >> 1; G.mp = G.maxmp >> 1;
+    G.gold -= ((G.gold * 4) / 10) | 0;
+    G.kills = 0;
+    backToMap();
+  } else if (G.scene === SC.WIN) {
+    initGame();
+  }
+  refresh();
+}
+
+function enemyTurn() {
+  if (G.ehp <= 0) { afterEnemyDead(); return; }
+  G.lastDmg = eDmg();
+  G.hp = Math.max(0, G.hp - G.lastDmg);
+  G.msg = ROM.msgs.MSG_ENEMY;
+  L("敌人反击，你受到 " + G.lastDmg + " 点伤害");
+  if (G.hp <= 0) {
+    G.scene = SC.DEAD;
+    L("你倒下了……");
+  }
+}
+
+function initGame() {
+  G.scene = SC.TITLE; G.cls = 0;
+  G.hp = G.maxhp = 130; G.mp = G.maxmp = 40;
+  G.atk = 13; G.def = 9; G.wb = 0; G.ab = 0;
+  G.gold = 40; G.lv = 1; G.pot = 2; G.potxl = 0;
+  G.exp = 0; G.need = 24; G.area = 0; G.kills = 0; G.bossDead = 0;
+  G.lastDmg = 0; G.msg = ROM.msgs.MSG_NONE;
+  logLines = [];
+}
+
+/* ---------------- 绘制 ---------------- */
+const PAL = ROM.palette;
+function draw(cv) {
+  const ctx = cv.getContext("2d");
+  const img = ctx.createImageData(640, 480);
+  const d = img.data;
+  for (let cy = 0; cy < ROWS; cy++) {
+    for (let cx = 0; cx < COLS; cx++) {
+      const cell = cells[cy * COLS + cx];
+      const code = cell & 255, fg = (cell >> 8) & 15, bg2 = (cell >> 12) & 15;
+      const cBg = PAL[bg2], cFg = PAL[fg];
+      const fr = (cFg >> 16) & 255, fgc = (cFg >> 8) & 255, fb = cFg & 255;
+      const br = (cBg >> 16) & 255, bgc = (cBg >> 8) & 255, bb = cBg & 255;
+      for (let ry = 0; ry < 16; ry++) {
+        const row = ROM.font[code * 16 + ry];
+        for (let rx = 0; rx < 16; rx++) {
+          const on = (row >> (15 - rx)) & 1;
+          const o = ((cy * 16 + ry) * 640 + (cx * 16 + rx)) * 4;
+          if (on) { d[o] = fr; d[o + 1] = fgc; d[o + 2] = fb; }
+          else { d[o] = br; d[o + 1] = bgc; d[o + 2] = bb; }
+          d[o + 3] = 255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+const KEY_LABEL = {
+  0: ["开始","剑士","探索","攻击","药水","确认","再来"],
+  1: ["","法师","商店","技能","大药水","","" ],
+  2: ["","游侠","休息","药水","强化","","" ],
+  3: ["","","首领","逃跑","离开","","" ]
+};
+function refresh() {
+  if (typeof document === "undefined" || !document.getElementById("cv")) return;
+  renderScene();
+  draw(document.getElementById("cv"));
+  const S = G.scene;
+  document.getElementById("s_scene").textContent = SCENE_NAME[S];
+  document.getElementById("s_state").textContent = "IDLE";
+  document.getElementById("s_pc").textContent = "0x" + ROM.screens[S].toString(16);
+  document.getElementById("s_wr").textContent = writeCount + " 次";
+  document.getElementById("s_hp").textContent = G.hp + " / " + G.maxhp + "   " + G.mp + " / " + G.maxmp;
+  document.getElementById("s_atk").textContent = atkT() + "  /  " + defT();
+  document.getElementById("s_lv").textContent = "Lv." + G.lv + "   " + G.exp + " / " + G.need;
+  document.getElementById("s_gold").textContent = G.gold + " 金   " + G.pot + " / " + G.potxl;
+  document.getElementById("s_area").textContent = ROM.areaName[G.area] + "   " + G.kills + " / 4";
+  document.getElementById("s_enemy").textContent =
+    (S === SC.BATTLE ? ROM.enemyName[G.eid] : "—") + "   " + (S === SC.BATTLE ? G.ehp + "/" + G.emaxhp : "");
+  document.getElementById("s_eatk").textContent =
+    S === SC.BATTLE ? G.eatk + "  /  " + G.edef : "—";
+  document.getElementById("trace").textContent = trace.join("\n");
+  document.getElementById("log").textContent = logLines.slice(-8).join("\n");
+  for (let i = 0; i < 4; i++) {
+    const el = document.getElementById("k" + i);
+    if (el) el.textContent = (KEY_LABEL[i][S] || "—");
+  }
+}
+
+function boot() {
+  if (typeof document === "undefined" || !document.getElementById("cv")) return;
+  initGame();
+  refresh();
+  document.addEventListener("keydown", (e) => {
+    const n = "1234".indexOf(e.key);
+    if (n >= 0) { e.preventDefault(); press(n); }
+  });
+}
+boot();
+</script>
+</body>
+</html>
