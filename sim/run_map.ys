@@ -1,5 +1,0 @@
-read_verilog -I rtl/gen rtl/gen/rpg_defs.vh rtl/clk_gen.v rtl/common/reset_sync.v rtl/common/key_debounce.v rtl/video/vid_timing.v rtl/video/tmds_encoder.v rtl/video/tmds_serdes.v rtl/video/hdmi_tx.v rtl/video/rpg_video.v rtl/gen/ui_rom.v rtl/gen/rpg_msgs.v rtl/ctrl/rpg_core.v sim/tb_video.v
-prep -top tb_video
-async2sync
-dffunmap
-sim -clock clk -n 445000 -vcd sim/video.vcd

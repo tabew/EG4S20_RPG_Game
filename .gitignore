@@ -1,11 +1,12 @@
 # ── 仿真产物 ──
-sim/*.vcd
-sim/*.log
-sim/iverilog/frames.rgb
-sim/iverilog/*.bin
+*.vcd
+*.log
+*.fst
 *.out
 *.vvp
-*.fst
+sim/iverilog/frames.rgb
+sim/iverilog/*.bin
+sim/player_cells.json
 
 # ── 早期的 BMP 预览（同内容已有 PNG）──
 preview/*.bmp

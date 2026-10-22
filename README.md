@@ -111,12 +111,13 @@ HDMI 直接输出 640×480 画面，板载 4 个按键操作。**
 │   └── gen/                   脚本生成：4 个 hex + 3 个 .v/.vh
 ├── tools/
 │   ├── build_rom.py           ★ 所有文案、数值、精灵、排版都在这里
-│   └── gdi_font.py            用 Windows GDI 把字栅格化成 16×16
-├── sim/
-│   ├── iverilog/              Icarus Verilog 测试台（能直接出画面）
-│   └── *.ys                   yosys 用的脚本
+│   ├── gdi_font.py            用 Windows GDI 把字栅格化成 16×16
+│   └── rgb2png.py             仿真导出的原始像素 → PNG
+├── sim/iverilog/              Icarus Verilog 测试台（跑真实 RTL，直接出画面）
 ├── preview/                   界面预览图（生成的 + 仿真实拍的）
-└── constraints/rpg_pins.adc   引脚约束（★ 要按原理图改）
+└── constraints/
+    ├── rpg_pins.adc           引脚约束（★ 要按原理图改）
+    └── timing.sdc             时序约束
 ```
 
 ---
