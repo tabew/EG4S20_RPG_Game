@@ -205,19 +205,21 @@ module hdmi_tx #(
     // 三个数据通道 + 时钟通道
     //---------------------------------------------------------
     wire [9:0] q0, q1, q2;
-    wire       load_pix = 1'b1;      // 每像素装载一次
 
     tmds_encoder u_enc0 (.clk(clk_pix), .rst_n(rst_pix_n), .din(ch0_8), .ctl(ch0_c), .de(d_en), .dout(q0));
     tmds_encoder u_enc1 (.clk(clk_pix), .rst_n(rst_pix_n), .din(ch1_8), .ctl(ch1_c), .de(d_en), .dout(q1));
     tmds_encoder u_enc2 (.clk(clk_pix), .rst_n(rst_pix_n), .din(ch2_8), .ctl(ch2_c), .de(d_en), .dout(q2));
 
-    tmds_serdes u_ser0 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n), .load(load_pix), .din(q0), .dout_p(hdmi_d_p[0]), .dout_n(hdmi_d_n[0]));
-    tmds_serdes u_ser1 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n), .load(load_pix), .din(q1), .dout_p(hdmi_d_p[1]), .dout_n(hdmi_d_n[1]));
-    tmds_serdes u_ser2 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n), .load(load_pix), .din(q2), .dout_p(hdmi_d_p[2]), .dout_n(hdmi_d_n[2]));
+    tmds_serdes u_ser0 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
+                        .din(q0), .dout_p(hdmi_d_p[0]), .dout_n(hdmi_d_n[0]));
+    tmds_serdes u_ser1 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
+                        .din(q1), .dout_p(hdmi_d_p[1]), .dout_n(hdmi_d_n[1]));
+    tmds_serdes u_ser2 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
+                        .din(q2), .dout_p(hdmi_d_p[2]), .dout_n(hdmi_d_n[2]));
 
-    // 时钟通道: 固定 10bit 图形 1111100000
+    // 时钟通道: 固定 10bit 图形 1111100000，串行后就是 1/10 频率 = 像素时钟
     tmds_serdes u_serclk (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
-                          .load(load_pix), .din(10'b1111100000),
+                          .din(10'b1111100000),
                           .dout_p(hdmi_clk_p), .dout_n(hdmi_clk_n));
 
     assign hdmi_d_p[3] = 1'b0;
