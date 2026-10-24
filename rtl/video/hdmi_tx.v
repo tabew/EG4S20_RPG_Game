@@ -21,7 +21,8 @@
 module hdmi_tx #(
     parameter integer H_ACTIVE    = 1280,
     parameter integer H_TOTAL     = 1650,
-    parameter integer AUDIO_DI_EN = 0
+    parameter integer AUDIO_DI_EN = 0,
+    parameter [2:0]   PH_OFFSET   = 3'd0     // 串行化相位微调，画面错位时试 0~4
 )(
     input  wire        clk_pix,
     input  wire        clk_p5x,
@@ -210,17 +211,22 @@ module hdmi_tx #(
     tmds_encoder u_enc1 (.clk(clk_pix), .rst_n(rst_pix_n), .din(ch1_8), .ctl(ch1_c), .de(d_en), .dout(q1));
     tmds_encoder u_enc2 (.clk(clk_pix), .rst_n(rst_pix_n), .din(ch2_8), .ctl(ch2_c), .de(d_en), .dout(q2));
 
-    tmds_serdes u_ser0 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
-                        .din(q0), .dout_p(hdmi_d_p[0]), .dout_n(hdmi_d_n[0]));
-    tmds_serdes u_ser1 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
-                        .din(q1), .dout_p(hdmi_d_p[1]), .dout_n(hdmi_d_n[1]));
-    tmds_serdes u_ser2 (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
-                        .din(q2), .dout_p(hdmi_d_p[2]), .dout_n(hdmi_d_n[2]));
+    // 四个通道用同一个 PH_OFFSET，改一处即可整体调相位
+    tmds_serdes #(.PH_OFFSET(PH_OFFSET)) u_ser0 (
+        .clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
+        .din(q0), .dout_p(hdmi_d_p[0]), .dout_n(hdmi_d_n[0]));
+    tmds_serdes #(.PH_OFFSET(PH_OFFSET)) u_ser1 (
+        .clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
+        .din(q1), .dout_p(hdmi_d_p[1]), .dout_n(hdmi_d_n[1]));
+    tmds_serdes #(.PH_OFFSET(PH_OFFSET)) u_ser2 (
+        .clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
+        .din(q2), .dout_p(hdmi_d_p[2]), .dout_n(hdmi_d_n[2]));
 
     // 时钟通道: 固定 10bit 图形 1111100000，串行后就是 1/10 频率 = 像素时钟
-    tmds_serdes u_serclk (.clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
-                          .din(10'b1111100000),
-                          .dout_p(hdmi_clk_p), .dout_n(hdmi_clk_n));
+    tmds_serdes #(.PH_OFFSET(PH_OFFSET)) u_serclk (
+        .clk_pix(clk_pix), .clk_p5x(clk_p5x), .rst_n(rst_pix_n),
+        .din(10'b1111100000),
+        .dout_p(hdmi_clk_p), .dout_n(hdmi_clk_n));
 
     assign hdmi_d_p[3] = 1'b0;
     assign hdmi_d_n[3] = 1'b1;

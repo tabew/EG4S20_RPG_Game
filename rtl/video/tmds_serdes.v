@@ -1,23 +1,24 @@
 //=============================================================================
 // tmds_serdes.v —— 10:1 串行化（5 相位 × DDR）
 //
-//   480p: clk_pix = 25.175MHz, clk_p5x = 125.875MHz
-//   每像素 10bit，5 个 clk_p5x 周期 × DDR(2bit/周期) = 10bit ✓
+//   480p: clk_pix = 25.175MHz，clk_p5x = 125.875MHz
+//   每像素 10bit = 5 个 clk_p5x 周期 × DDR(每周期 2bit)
 //
-// ★ 关键：DDR 输出必须用 IO 的硬原语，绝不能用 LUT 搭
-//     `dout = clk ? a : b` 这种写法在 125MHz 下会出毛刺和偏斜，
-//     症状就是**整屏密集竖条纹、黑底也有条纹**。
+// ★ DDR 输出必须用 IO 硬原语
+//   `assign q = clk ? a : b` 在 125MHz 下会被综合成 LUT，抖动大，
+//   典型症状就是**整屏密集竖条纹、黑底也有条纹**。
+//   本文件用安路的 EG_LOGIC_ODDR（EG4 系列原语名，端口 d0/d1/clk/q/rst）。
+//   若 TD 报找不到该原语，在 TD 安装目录搜 "ODDR" 确认名字
+//   （PH1 系列叫 PH1_LOGIC_ODDR），或者直接用 IP Generator 的 LVDS/SerDes。
 //
-//   两条路，任选其一：
-//     A. 定义 USE_ODDR_PRIM，例化安路的 DDR 输出原语
-//     B. 用 TD 的 IP Generator → LVDS/SerDes，把本模块整个替换成 IP 的输出级
-//
-//   原语名和端口名不同 TD 版本有差异（ODDR / AL_ODDR，端口常见 D0/D1/CLK/Q
-//   或 DAT0/DAT1/CLK/Q），以 TD 原语库为准；也可以让 IP Generator 生成
-//   DDR 输出后把生成的 wrapper 抄进来。
+// ★ 相位微调 PH_OFFSET
+//   串行化的相位必须和像素时钟对齐，差一个 clk_p5x 周期就会整屏错位。
+//   综合后若画面有规律性重影/错位，把 PH_OFFSET 从 0 依次试到 4。
 //=============================================================================
 `timescale 1ns/1ps
-module tmds_serdes (
+module tmds_serdes #(
+    parameter [2:0] PH_OFFSET = 3'd0      // 相位微调，0~4
+)(
     input  wire       clk_pix,     // 像素时钟
     input  wire       clk_p5x,     // 5× 像素时钟，与 clk_pix 同源
     input  wire       rst_n,
@@ -28,53 +29,51 @@ module tmds_serdes (
 
     //---------------------------------------------------------
     // 5 相位计数器
-    //   用 clk_pix 的上升沿把相位对齐到像素边界，之后每 5 个
-    //   clk_p5x 自动回绕。靠这个计数器决定什么时候装载新字。
+    //   先把 clk_pix 用两级触发器同步到 clk_p5x 域（消除亚稳态），
+    //   再检测上升沿，把相位计数器对齐到像素边界。
+    //   之后每 5 个 clk_p5x 自动回绕。
     //---------------------------------------------------------
+    reg [1:0] pix_s;                       // 两级同步
+    wire      pix_rise = pix_s[1] & ~pix_s[0];
     reg [2:0] ph;
-    reg       pix_d;
-    wire      pix_rise = clk_pix & ~pix_d;
 
     always @(posedge clk_p5x or negedge rst_n) begin
         if (!rst_n) begin
-            ph    <= 3'd4;
-            pix_d <= 1'b0;
+            pix_s <= 2'b00;
+            ph    <= PH_OFFSET;
         end else begin
-            pix_d <= clk_pix;
-            if (pix_rise || ph == 3'd4) ph <= 3'd0;
-            else                        ph <= ph + 3'd1;
+            pix_s <= {pix_s[0], clk_pix};
+            if (pix_rise)          ph <= PH_OFFSET;
+            else if (ph == 3'd4)   ph <= 3'd0;
+            else                   ph <= ph + 3'd1;
         end
     end
 
     //---------------------------------------------------------
-    // 移位寄存器：每周期右移 2 位（DDR 一次出 2 bit）
+    // 移位寄存器：每周期右移 2 位（DDR 一次出 2bit，LSB 先发）
     //---------------------------------------------------------
     reg [9:0] sh;
 
     always @(posedge clk_p5x or negedge rst_n) begin
-        if (!rst_n)              sh <= 10'h3FF;
-        else if (ph == 3'd0)     sh <= din;              // 像素边界装载
-        else                     sh <= {2'b11, sh[9:2]}; // 右移 2 位
+        if (!rst_n)          sh <= 10'h3FF;
+        else if (ph == 3'd0) sh <= din;               // 像素边界装载
+        else                 sh <= {2'b11, sh[9:2]};  // 右移 2 位
     end
 
+    //---------------------------------------------------------
+    // DDR 输出原语
+    //---------------------------------------------------------
 `ifdef USE_ODDR_PRIM
-    //---------------------------------------------------------------
-    // A. 安路 DDR 输出原语（端口名请按 TD 原语库核对）
-    //---------------------------------------------------------------
-    ODDR u_ddr (
-        .D0  (sh[0]),        // 时钟上升沿送出
-        .D1  (sh[1]),        // 时钟下降沿送出
-        .CLK (clk_p5x),
-        .RST (~rst_n),
-        .Q   (dout_p)
+    EG_LOGIC_ODDR u_ddr (
+        .d0  (sh[0]),        // 时钟上升沿送出
+        .d1  (sh[1]),        // 时钟下降沿送出
+        .clk (clk_p5x),
+        .rst (~rst_n),
+        .q   (dout_p)
     );
     assign dout_n = ~dout_p;
 `else
-    //---------------------------------------------------------------
-    // 行为模型：**只能仿真**
-    //   综合出来会是一个 clock-as-data 的 LUT，125MHz 下必出条纹。
-    //   上板前必须换成 A 或 TD 的 SerDes IP。
-    //---------------------------------------------------------------
+    // 行为模型：**只能仿真**。综合出来是 LUT 搭的 DDR，上板必出条纹。
     assign dout_p = clk_p5x ? sh[1] : sh[0];
     assign dout_n = ~dout_p;
 `endif
