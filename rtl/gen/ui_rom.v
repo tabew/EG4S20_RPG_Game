@@ -67,32 +67,32 @@ module rpg_tables (
 );
     always @(*) begin
         case (ename_id)
-      4'd0: ename = 56'h000000002A2928;
-      4'd1: ename = 56'h00000000002C2B;
-      4'd2: ename = 56'h00000000002E2D;
-      4'd3: ename = 56'h0000000000302F;
-      4'd4: ename = 56'h00000000003231;
-      4'd5: ename = 56'h00000000003433;
-      4'd6: ename = 56'h00000000373635;
-      4'd7: ename = 56'h0000003B3A3938;
-      4'd8: ename = 56'h0000003F3E3D3C;
-      4'd9: ename = 56'h00000000424140;
-      4'd10: ename = 56'h000000432A2928;
-      4'd11: ename = 56'h00004847464544;
-      4'd12: ename = 56'h000000344B4A49;
-      4'd13: ename = 56'h00000043343938;
-      4'd14: ename = 56'h0000004F4E4D4C;
+      4'd0: ename = 56'h000000002B2A29;
+      4'd1: ename = 56'h00000000002D2C;
+      4'd2: ename = 56'h00000000002F2E;
+      4'd3: ename = 56'h00000000003130;
+      4'd4: ename = 56'h00000000003332;
+      4'd5: ename = 56'h00000000003534;
+      4'd6: ename = 56'h00000000383736;
+      4'd7: ename = 56'h0000003C3B3A39;
+      4'd8: ename = 56'h000000403F3E3D;
+      4'd9: ename = 56'h00000000434241;
+      4'd10: ename = 56'h000000442B2A29;
+      4'd11: ename = 56'h00004948474645;
+      4'd12: ename = 56'h000000354C4B4A;
+      4'd13: ename = 56'h00000044353A39;
+      4'd14: ename = 56'h000000504F4E4D;
         default: ename = 56'd0;
         endcase
     end
 
     always @(*) begin
         case (area_id)
-      4'd0: area_name = 48'h000053525150;
-      4'd1: area_name = 48'h000045445554;
-      4'd2: area_name = 48'h00004A495756;
-      4'd3: area_name = 48'h000000595835;
-      4'd4: area_name = 48'h00005D5C5B5A;
+      4'd0: area_name = 48'h000054535251;
+      4'd1: area_name = 48'h000046455655;
+      4'd2: area_name = 48'h00004B4A5857;
+      4'd3: area_name = 48'h0000005A5936;
+      4'd4: area_name = 48'h00005E5D5C5B;
         default: area_name = 48'd0;
         endcase
     end
@@ -160,6 +160,7 @@ module rpg_screens (
             3'd4: addr = 10'd226;   // shop
             3'd5: addr = 10'd294;   // dead
             3'd6: addr = 10'd306;   // win
+            3'd7: addr = 10'd332;   // pic
             default: addr = 10'd0;
         endcase
     end

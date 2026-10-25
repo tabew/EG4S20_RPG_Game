@@ -485,9 +485,22 @@ def screen_title():
     o += S(14, 4, "ASCII QUEST", GREEN)
     o += S(19, 6, "2026", RPG_GRAY)
     o += S(16, 10, "字符搭成的世界", RPG_LGRAY)
-    o += S(15, 12, "五片土地，沉睡的领主", RPG_LGRAY)
     o += S(15, 17, "按 1 开始冒险", WHITE)
+    o += S(15, 19, "按 2 看图", RPG_LGRAY)
     o += S(12, 21, "板载按键 1-4 操作", RPG_GRAY)
+    o += [("end",)]
+    return o
+
+
+def screen_pic():
+    """动态插图页：中央 16x12 格留给图片层（视频端盖上去），四周是文字"""
+    o = [("clear", BLACK)]
+    o += FRAME(0, 0, 40, 30, RPG_GRAY)
+    o += S(2, 1, "营地", YELLOW)
+    o += FRAME(11, 8, 18, 14, DGRAY)          # 框住 16x12 的图片区
+    o += S(2, 3, "128X96", RPG_LGRAY)
+    o += S(2, 23, "篝火", WHITE)
+    o += S(2, 26, "1 上 2 下 3 停 4 返", RPG_GRAY)
     o += [("end",)]
     return o
 
@@ -654,6 +667,7 @@ SCREENS = {
     "shop":   screen_shop(),
     "dead":   screen_dead(),
     "win":    screen_win(),
+    "pic":    screen_pic(),
 }
 
 _extra_text = [op[3] for ops in SCREENS.values() for op in ops if op[0] == "text"]
@@ -1118,6 +1132,7 @@ module rpg_screens (
             3'd4: addr = 10'd%d;   // shop
             3'd5: addr = 10'd%d;   // dead
             3'd6: addr = 10'd%d;   // win
+            3'd7: addr = 10'd%d;   // pic
             default: addr = 10'd0;
         endcase
     end
@@ -1125,7 +1140,8 @@ endmodule
 """ % ("\n".join(enemy_name_case), "\n".join(area_case), "\n".join(enemy_stat_case),
        "\n".join(area_mob_case),
        SCREEN_ADDR["title"], SCREEN_ADDR["class"], SCREEN_ADDR["map"],
-       SCREEN_ADDR["battle"], SCREEN_ADDR["shop"], SCREEN_ADDR["dead"], SCREEN_ADDR["win"])
+       SCREEN_ADDR["battle"], SCREEN_ADDR["shop"], SCREEN_ADDR["dead"], SCREEN_ADDR["win"],
+       SCREEN_ADDR["pic"])
 
 with open(os.path.join(GEN, "ui_rom.v"), "w", encoding="utf-8", newline="\n") as f:
     f.write(ui_v)

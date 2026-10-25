@@ -22,6 +22,10 @@ module rpg_video (
     input  wire [10:0] waddr,
     input  wire [15:0] wdata,
 
+    // 动态插图（图片层：窗口内且该格无字形时显示，文字压在图上）
+    input  wire        anim_on,
+    input  wire [2:0]  anim_frame,
+
     // 视频输出
     output wire        hs,
     output wire        vs,
@@ -131,6 +135,59 @@ module rpg_video (
     end
 
     //---------------------------------------------------------
+    // 动态插图层（4bpp 位图，2 倍放大到 256x192，居中）
+    //
+    //   S0: 按 (x,y) 算源像素地址
+    //   S1: BRAM 输出字节, 选高/低半字节
+    //   S2: 调色板查表
+    //   S3: 与字符层对齐输出
+    //---------------------------------------------------------
+    localparam integer AW = 128, AH = 96;            // 源尺寸
+    localparam integer FRM_BYTES = AW * AH / 2;      // 每帧字节数
+    localparam [11:0]  AX0 = 12'd192, AY0 = 12'd144; // 居中, 256x192
+
+    wire in_win0 = anim_on &&
+                   (x >= AX0) && (x < AX0 + 12'd256) &&
+                   (y >= AY0) && (y < AY0 + 12'd192);
+
+    // 注意：必须先做全宽相减再取位。用 y[7:0]-AY0[7:0] 的话，
+    // y 超过 255 会回绕，图片下半部分会重复上半部分（实测踩过）。
+    wire [11:0] ax = x - AX0;                         // 0..255
+    wire [11:0] ay = y - AY0;                         // 0..191
+    wire [6:0]  sx = ax[7:1];                         // /2 水平放大
+    wire [6:0]  sy = ay[7:1];                         // /2 垂直放大（96 行需要 7 位!）
+    wire [13:0] spix = {sy, sx};                      // sy*128 + sx, 0..12287
+    wire [16:0] anim_addr = anim_frame * FRM_BYTES + (spix >> 1);
+
+    wire [7:0]  anim_byte;
+    wire [15:0] anim_rgb;
+    reg  [3:0]  pal_idx;
+    reg         win1, win2, win3;
+    reg  [15:0] anim_rgb_r;
+
+    anim_rom u_anim (
+        .clk     (clk),
+        .addr    (anim_addr),
+        .data    (anim_byte),
+        .pal_idx (pal_idx),
+        .pal_rgb (anim_rgb)
+    );
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pal_idx    <= 4'd0;
+            win1 <= 1'b0; win2 <= 1'b0; win3 <= 1'b0;
+            anim_rgb_r <= 16'h0000;
+        end else begin
+            pal_idx    <= spix[0] ? anim_byte[3:0] : anim_byte[7:4];
+            win1       <= in_win0;
+            win2       <= win1;
+            win3       <= win2;
+            anim_rgb_r <= anim_rgb;
+        end
+    end
+
+    //---------------------------------------------------------
     // 调色板
     //---------------------------------------------------------
     function [15:0] pal;
@@ -157,8 +214,11 @@ module rpg_video (
         end
     endfunction
 
-    wire        bit_on = gw_r[15 - sx3];
-    wire [15:0] pix    = pal(bit_on ? cell_r3[11:8] : cell_r3[15:12]);
+    wire        bit_on   = gw_r[15 - sx3];
+    wire [15:0] char_pix = pal(bit_on ? cell_r3[11:8] : cell_r3[15:12]);
+
+    // 混层：插图窗口内且该格没有字形 -> 出插图；否则出字符（文字/边框压在图上）
+    wire [15:0] pix = (win3 && cell_r3[7:0] == 8'd0) ? anim_rgb_r : char_pix;
 
     assign hs  = hs3;
     assign vs  = vs3;

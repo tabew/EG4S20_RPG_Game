@@ -68,6 +68,8 @@ module rpg_top #(
     // 游戏核心 -> 字符屏
     //---------------------------------------------------------
     wire        we;
+    wire        anim_on;
+    wire [2:0]  anim_frame;
     wire [10:0] waddr;
     wire [15:0] wdata;
 
@@ -77,7 +79,9 @@ module rpg_top #(
         .key   (kpress),
         .we    (we),
         .waddr (waddr),
-        .wdata (wdata)
+        .wdata (wdata),
+        .anim_on    (anim_on),
+        .anim_frame (anim_frame)
     );
 
     wire        vga_hs, vga_vs, vga_de;
@@ -89,6 +93,8 @@ module rpg_top #(
         .we    (we),
         .waddr (waddr),
         .wdata (wdata),
+        .anim_on    (anim_on),
+        .anim_frame (anim_frame),
         .hs    (vga_hs),
         .vs    (vga_vs),
         .de    (vga_de),

@@ -32,6 +32,8 @@ module tb_play;
     reg  [3:0] key = 4'b0000;
 
     wire        we;
+    wire        anim_on;
+    wire [2:0]  anim_frame;
     wire [10:0] waddr;
     wire [15:0] wdata;
     wire        hs, vs, de;
@@ -60,12 +62,16 @@ module tb_play;
         .dbg_lv     (o_lv),
         .dbg_state  (o_state),
         .dbg_pc     (),
+        .anim_on    (anim_on),
+        .anim_frame (anim_frame),
         .dbg_ehp    (o_ehp)
     );
 
     rpg_video u_vid (
         .clk   (clk),
         .rst_n (rst_vid_n),
+        .anim_on    (anim_on),
+        .anim_frame (anim_frame),
         .we    (we),
         .waddr (waddr),
         .wdata (wdata),

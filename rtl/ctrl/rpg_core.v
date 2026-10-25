@@ -35,7 +35,11 @@ module rpg_core (
     output wire [3:0]  dbg_lv,
     output wire [3:0]  dbg_state,
     output wire [9:0]  dbg_pc,
-    output wire [9:0]  dbg_ehp
+    output wire [9:0]  dbg_ehp,
+
+    // 动态插图（给 rpg_video 的图片层）
+    output reg         anim_on,
+    output reg  [2:0]  anim_frame
 );
 
     //---------------------------------------------------------
@@ -43,7 +47,7 @@ module rpg_core (
     //---------------------------------------------------------
     localparam [2:0] SC_TITLE = 3'd0, SC_CLASS = 3'd1, SC_MAP = 3'd2,
                      SC_BATTLE = 3'd3, SC_SHOP = 3'd4, SC_DEAD = 3'd5,
-                     SC_WIN   = 3'd6;
+                     SC_WIN   = 3'd6, SC_PIC = 3'd7;
 
     localparam [1:0] CL_WAR = 2'd0, CL_MAG = 2'd1, CL_RAN = 2'd2;
 
@@ -57,6 +61,38 @@ module rpg_core (
     // 游戏寄存器
     //---------------------------------------------------------
     reg [2:0]  scene;
+
+    // 动态插图：帧号 + 自动播放计时 + 暂停
+`ifdef SIM_FAST
+    localparam [21:0] PIC_PERIOD = 22'd2_000_000;  // 仿真: 约 5 帧换一次, 一屏内不混帧
+`else
+    localparam [21:0] PIC_PERIOD = 22'd3_125_000;  // 25MHz / 8 = 8 帧每秒
+`endif
+    reg [21:0] pic_tmr;
+    reg        pic_pause;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pic_tmr    <= 22'd0;
+            pic_pause  <= 1'b0;
+            anim_frame <= 3'd0;
+        end else if (scene == SC_PIC && !pic_pause) begin
+            if (pic_tmr >= PIC_PERIOD) begin
+                pic_tmr    <= 22'd0;
+                anim_frame <= anim_frame + 3'd1;
+            end else begin
+                pic_tmr <= pic_tmr + 22'd1;
+            end
+        end else begin
+            pic_tmr <= 22'd0;
+        end
+    end
+
+    // 图片层只在插图页打开
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) anim_on <= 1'b0;
+        else        anim_on <= (scene == SC_PIC);
+    end
     reg [1:0]  cls;
     reg [9:0]  hp, maxhp, mp, maxmp;
     reg [7:0]  atk, def, wb, ab;
@@ -746,7 +782,12 @@ module rpg_core (
 
                     SC_TITLE: begin
                         if (key_e != 4'd0) begin
-                            scene  <= SC_CLASS;
+                            if (key_e[1]) begin
+                                scene    <= SC_PIC;
+                                pic_pause <= 1'b0;
+                            end else begin
+                                scene <= SC_CLASS;
+                            end
                             redraw <= 1'b1;
                         end
                     end
@@ -889,6 +930,22 @@ module rpg_core (
                             kills  <= 4'd0;
                             scene  <= SC_MAP;
                             redraw <= 1'b1;
+                        end
+                    end
+
+                    SC_PIC: begin
+                        if (key_e[3]) begin              // 4: 返回标题
+                            scene     <= SC_TITLE;
+                            pic_pause <= 1'b0;
+                            redraw    <= 1'b1;
+                        end else if (key_e[2]) begin     // 3: 暂停/继续
+                            pic_pause <= ~pic_pause;
+                        end else if (key_e[0]) begin     // 1: 上一帧(并暂停)
+                            anim_frame <= anim_frame - 3'd1;
+                            pic_pause  <= 1'b1;
+                        end else if (key_e[1]) begin     // 2: 下一帧(并暂停)
+                            anim_frame <= anim_frame + 3'd1;
+                            pic_pause  <= 1'b1;
                         end
                     end
 
