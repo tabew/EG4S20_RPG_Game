@@ -22,6 +22,7 @@ module rpg_top #(
     input  wire       rst_key_n,
     input  wire [3:0] key_n,
 
+    output wire [3:0] key_row,        // 矩阵键盘行扫描, 恒为低电平
     output wire [3:0] hdmi_d_p,
     output wire [3:0] hdmi_d_n,
     output wire       hdmi_clk_p,
@@ -50,7 +51,12 @@ module rpg_top #(
 
     //---------------------------------------------------------
     // 按键
+    // 板上是 4x4 矩阵键盘: 列经 1k 上拉到 3.3V, 行做扫描输出。
+    // 4 行全部驱动为低 -> 按下任意键把对应列拉低, 恰好匹配
+    // 低有效的 key_n, 消抖逻辑无需修改 (同一列的 4 个键等价)。
     //---------------------------------------------------------
+    assign key_row = 4'b0000;
+
     wire [3:0] kpress;
 
     key_debounce u_k0 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[0]), .click(kpress[0]), .press(), .long_press());

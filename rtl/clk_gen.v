@@ -1,18 +1,14 @@
 //=============================================================================
-// clk_gen.v —— 时钟生成(本工程只需要两路)
+// clk_gen.v —— 时钟生成
 //
-//   clk_pix = 25.175 MHz   640x480p60 像素时钟
-//   clk_p5x = 125.875 MHz  5x 像素时钟, TMDS 串行化用(DDR 后 251.75Mbps)
+//   PLL 实际输出 (IP Generator 取整后):
+//     clk0_out = 25.000MHz  -> clk_pix (640x480 像素时钟, 帧率约 59.5Hz)
+//     clk1_out = 125.000MHz -> clk_p5x (TMDS 串行化, DDR 后 250Mbps)
 //
-// ★ 上板必须替换成 TD(安路 Tang Dynasty) IP Generator 生成的 PLL:
-//     Tools -> IP Generator -> PLL
-//   输入 50MHz, 输出 c0 = 25.175MHz, c1 = 125.875MHz, 两路同源。
-//
-//   25.175 = 50 * 161 / 320 、 125.875 = 50 * 161 / 64
-//   若分数分频配不出来, 可以退用 25.000MHz + 125.000MHz, 显示器一般也认
-//   (帧率变 59.5Hz, 对字符游戏毫无影响)。
-//
-// 仿真时 `define SIM_BEHAV, 直接透传, 功能验证够用。
+//   宏开关:
+//     SIM_BEHAV  仿真用, 直接透传
+//     USE_PLL_IP 上板用, 例化 TD IP Generator 生成的 pll_ip
+//     都不定义   故意例化不存在的模块, 逼综合报错, 防止忘配宏烧板黑屏
 //=============================================================================
 `timescale 1ns/1ps
 module clk_gen (
@@ -28,21 +24,18 @@ module clk_gen (
     assign clk_p5x = clk_in;
     assign locked  = rst_n;
 `else
-    //-------------------------------------------------------------
-    // 把下面替换成 TD 生成的 PLL 实例
-    //-------------------------------------------------------------
-    // pll_ip u_pll (
-    //     .clk_in1  (clk_in),
-    //     .clk_out1 (clk_pix),     // 25.175MHz
-    //     .clk_out2 (clk_p5x),     // 125.875MHz
-    //     .locked   (locked),
-    //     .reset    (~rst_n)
-    // );
-
-    // 未替换前的占位(透传): 能过综合、能做资源评估, 但上板无画面
-    assign clk_pix = clk_in;
-    assign clk_p5x = clk_in;
-    assign locked  = rst_n;
+`ifdef USE_PLL_IP
+    // TD IP Generator 生成的 PLL (C0=25MHz, C1=125MHz, reset 高有效)
+    pll_ip u_pll (
+        .refclk   (clk_in),
+        .reset    (~rst_n),
+        .extlock  (locked),
+        .clk0_out (clk_pix),
+        .clk1_out (clk_p5x)
+    );
+`else
+    clk_gen_undefined_mode_error u_undefined_mode_error();
+`endif
 `endif
 
 endmodule

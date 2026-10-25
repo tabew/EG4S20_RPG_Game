@@ -104,7 +104,7 @@ HDMI 直接输出 640×480 画面，板载 4 个按键操作。**
 ```
 ├── rtl/
 │   ├── rpg_top.v              顶层
-│   ├── clk_gen.v              ★ PLL 封装（要替换成 TD 生成的 IP）
+│   ├── clk_gen.v              PLL 封装（综合时定义 USE_PLL_IP）
 │   ├── ctrl/rpg_core.v        ★ 游戏逻辑 + 界面解释器
 │   ├── video/                 字符屏 / 480p 时序 / TMDS
 │   ├── common/                复位、按键消抖
@@ -201,25 +201,31 @@ sim\iverilog\run.bat
 
 ## 八、上板与烧录
 
-完整的建工程、改 PLL、改引脚、生成码流、下载到 SRAM / Flash 的步骤，以及
+完整的建工程、生成 PLL、生成码流、下载到 SRAM / Flash 的步骤，以及
 「烧完没画面怎么排查」，单独写在 **[docs/上板与烧录.md](docs/上板与烧录.md)**。
 
-> 先说最重要的一句：**工程里有 4 个占位是故意留的**（PLL、引脚、TMDS 输出级、
-> hex 路径），补齐之前烧进去一定没画面。文档第一节就是这 4 项。
+> **只要两个编译宏**：`USE_PLL_IP`（用 TD 生成的 PLL）和 `USE_ODDR_PRIM`
+> （TMDS 用 IO 的 DDR 原语而不是 LUT）。少第二个的直接症状就是整屏竖条纹。
+> PLL 和引脚已按 HX4S20C 填好，不用再改。
 
 下面是其中几件容易踩坑的：
 
 
-### 1. PLL（不改就没画面）
+### 1. PLL 与 DDR 原语（两个宏）
 
-`rtl/clk_gen.v` 里把注释掉的 PLL 实例换成 TD 的 IP Generator 生成的：
-输入 50MHz，输出 **25.175MHz** 和 **125.875MHz**。
-配不出小数分频就退用 25.000 / 125.000，帧率变 59.5Hz，显示器照样认。
+`rtl/clk_gen.v` 里 PLL 已经接好（50MHz → 25MHz + 125MHz），
+只要用 TD 的 IP Generator 生成一个叫 `pll_ip` 的 PLL，综合时定义 `USE_PLL_IP`。
+
+`rtl/video/tmds_serdes.v` 的 DDR 输出必须定义 `USE_ODDR_PRIM`，
+否则会退化成 LUT 搭的 DDR，125MHz 下**必然出现整屏竖条纹**。
+
+两个宏都不定义时，`clk_gen` 会故意例化一个不存在的模块逼综合报错——
+防止忘了配就烧板，黑屏还查不出原因。
 
 ### 2. 引脚
 
-`constraints/rpg_pins.adc` 里所有 `LOCATION` 都是**占位值**，按 HX4S20C 原理图改。
-HDMI 那 4 对必须落在支持 LVDS 的差分对上，P/N 同组；TD 只约束 P 端。
+`constraints/rpg_pins.adc` 已按 HX4S20C 填好（含 4×4 矩阵键盘的 `key_row[3:0]`）。
+换板子才需要改：HDMI 那 4 对必须在支持 LVDS 的差分对上，P/N 同组，TD 只约束 P 端。
 
 ### 3. hex 文件路径
 
