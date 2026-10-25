@@ -172,9 +172,12 @@ module hdmi_tx #(
         d_en  = de;
 
         if (de) begin
-            ch0_8 = {rgb[15:11], rgb[10:8]};    // R
-            ch1_8 = {rgb[7:2],   rgb[4:3]};     // G
-            ch2_8 = {rgb[4:0],   rgb[7:5]};     // B
+            // RGB565 -> RGB888（高位补到 8bit）
+            //   注意: 之前这里写成了 {rgb[15:11],rgb[10:8]} 之类，把
+            //   G/B 的位混进了 R 通道，中灰会偏绿、黄色偏白。
+            ch0_8 = {rgb[15:11], rgb[13:11]};   // R: 5 -> 8
+            ch1_8 = {rgb[10:5],  rgb[10:9]};    // G: 6 -> 8
+            ch2_8 = {rgb[4:0],   rgb[2:0]};     // B: 5 -> 8
         end else if (AUDIO_DI_EN != 0) begin
             case (di_st)
             DI_PRE: begin

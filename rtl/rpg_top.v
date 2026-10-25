@@ -59,10 +59,10 @@ module rpg_top #(
 
     wire [3:0] kpress;
 
-    key_debounce u_k0 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[0]), .click(kpress[0]), .press(), .long_press());
-    key_debounce u_k1 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[1]), .click(kpress[1]), .press(), .long_press());
-    key_debounce u_k2 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[2]), .click(kpress[2]), .press(), .long_press());
-    key_debounce u_k3 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[3]), .click(kpress[3]), .press(), .long_press());
+    key_debounce #(.CLK_KHZ(25000)) u_k0 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[0]), .click(kpress[0]), .press(), .long_press());
+    key_debounce #(.CLK_KHZ(25000)) u_k1 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[1]), .click(kpress[1]), .press(), .long_press());
+    key_debounce #(.CLK_KHZ(25000)) u_k2 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[2]), .click(kpress[2]), .press(), .long_press());
+    key_debounce #(.CLK_KHZ(25000)) u_k3 (.clk(clk_pix), .rst_n(rst_n), .key_n(key_n[3]), .click(kpress[3]), .press(), .long_press());
 
     //---------------------------------------------------------
     // 游戏核心 -> 字符屏
