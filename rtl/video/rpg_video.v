@@ -20,7 +20,7 @@ module rpg_video (
     // 格子写入端口(来自 rpg_core)
     input  wire        we,
     input  wire [10:0] waddr,
-    input  wire [15:0] wdata,
+    input  wire [16:0] wdata,
 
     // 动态插图（图片层：窗口内且该格无字形时显示，文字压在图上）
     input  wire        anim_on,
@@ -58,8 +58,8 @@ module rpg_video (
     //---------------------------------------------------------
     // 格子 RAM(简单双口: 一写一读, 必须分两个 always 块)
     //---------------------------------------------------------
-    reg [15:0] cell_mem [0:1199];
-    reg [15:0] cell_r;
+    reg [16:0] cell_mem [0:1199];
+    reg [16:0] cell_r;
 
     wire [10:0] cell_idx = (y[8:4] * 40) + x[9:4];
 
@@ -75,14 +75,14 @@ module rpg_video (
     // 字模 ROM
     //---------------------------------------------------------
     reg  [3:0]  y_d1;
-    wire [11:0] font_a;
+    wire [12:0] font_a;
     wire [15:0] font_q;
 
-    assign font_a = {cell_r[7:0], y_d1};     // 字形号来自延迟一拍的格子
+    assign font_a = {cell_r[8:0], y_d1};     // 字形号来自延迟一拍的格子
 
     font_rom u_font (
         .clk   (clk),
-        .glyph (font_a[11:4]),
+        .glyph (font_a[12:4]),
         .row   (font_a[3:0]),
         .data  (font_q)
     );
@@ -90,7 +90,7 @@ module rpg_video (
     //---------------------------------------------------------
     // 流水线寄存器
     //---------------------------------------------------------
-    reg [15:0] cell_r2, cell_r3;      // 颜色与像素对齐用
+    reg [16:0] cell_r2, cell_r3;      // 颜色与像素对齐用
     reg [15:0] gw_r;                  // 字模行数据
     reg [3:0]  sx1, sx2, sx3;
     reg        de1, de2, de3;
@@ -100,8 +100,8 @@ module rpg_video (
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             y_d1    <= 4'd0;
-            cell_r2 <= 16'd0;
-            cell_r3 <= 16'd0;
+            cell_r2 <= 17'd0;
+            cell_r3 <= 17'd0;
             gw_r    <= 16'd0;
             sx1     <= 4'd0;
             sx2     <= 4'd0;
@@ -215,10 +215,10 @@ module rpg_video (
     endfunction
 
     wire        bit_on   = gw_r[15 - sx3];
-    wire [15:0] char_pix = pal(bit_on ? cell_r3[11:8] : cell_r3[15:12]);
+    wire [15:0] char_pix = pal(bit_on ? cell_r3[12:9] : cell_r3[16:13]);
 
     // 混层：插图窗口内且该格没有字形 -> 出插图；否则出字符（文字/边框压在图上）
-    wire [15:0] pix = (win3 && cell_r3[7:0] == 8'd0) ? anim_rgb_r : char_pix;
+    wire [15:0] pix = (win3 && cell_r3[8:0] == 9'd0) ? anim_rgb_r : char_pix;
 
     assign hs  = hs3;
     assign vs  = vs3;

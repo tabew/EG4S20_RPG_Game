@@ -35,12 +35,12 @@ module tb_play;
     wire        anim_on;
     wire [2:0]  anim_frame;
     wire [10:0] waddr;
-    wire [15:0] wdata;
+    wire [16:0] wdata;
     wire        hs, vs, de;
     wire [15:0] rgb;
 
     wire [3:0]  o_state;
-    wire [2:0]  o_scene;
+    wire [3:0]  o_scene;
     wire [9:0]  o_hp, o_maxhp;
     wire [11:0] o_gold;
     wire [3:0]  o_lv;
@@ -155,8 +155,8 @@ module tb_play;
                         {fbuf[i][4:0],   3'b000});     // B
             end
             shot = shot + 1;
-            $display("[TB] 存下第 %0d 帧  -> 场景=%0d HP=%0d/%0d 敌HP=%0d 金=%0d Lv%0d",
-                     shot, o_scene, o_hp, o_maxhp, o_ehp, o_gold, o_lv);
+            $display("[TB] 存下第 %0d 帧  -> 场景=%0d HP=%0d/%0d 敌#%0d HP=%0d 金=%0d Lv%0d rnd=%b",
+                     shot, o_scene, o_hp, o_maxhp, u_core.enemy_id, o_ehp, o_gold, o_lv, u_core.rnd[1:0]);
         end
     endtask
 

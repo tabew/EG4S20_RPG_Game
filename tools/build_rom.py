@@ -1,3 +1,18 @@
+ADESS = [
+    "田埂草叶挂着露水",
+    "雾气缠着树干不散",
+    "矿灯照着湿滑岩壁",
+    "热浪扑面石头烫脚",
+    "黑曜长廊没有一丝风",
+]
+
+AREAS = [
+    ("新手村外", [0, 1, 2, 3],      4),
+    ("迷雾森林", [5, 6, 7, 8],      9),
+    ("废弃矿洞", [10, 11, 12, 13],  14),
+    ("火山口",   [15, 16, 17, 18],  19),
+    ("暗黑城堡", [20, 21, 22, 23],  24),
+]
 # -*- coding: utf-8 -*-
 """
 build_rom.py —— 字符 RPG 的全部资源生成器
@@ -136,7 +151,7 @@ T = {
 
     "hp": "生命", "mp": "魔力", "atk": "攻", "def": "防",
     "gold": "金", "lv": "级", "exp": "经验", "pot": "药水",
-    "potxl": "大药水", "kills": "讨伐", "dmg": "伤害",
+    "potxl": "大药水", "herb": "药草", "kills": "讨伐", "dmg": "伤害",
 
     "explore": "探索", "shop": "商店", "rest": "休息",
     "boss": "首领", "next": "前往", "ending": "结局",
@@ -172,30 +187,39 @@ T = {
 
 # 敌人: 名字, hp, atk, def, exp, gold, sprite_id, is_boss
 ENEMIES = [
-    ("史莱姆",   36,  8,  2,   9,   7, 0, 0),
-    ("野兔",     30, 11,  1,   8,   6, 1, 0),
-    ("灰狼",     66, 15,  4,  18,  13, 2, 0),
-    ("树精",     86, 13,  8,  22,  16, 3, 0),
-    ("毒蝠",     78, 19,  3,  26,  19, 4, 0),
-    ("石魔",    132, 17, 13,  34,  27, 5, 0),
-    ("火蜥蜴",  118, 25,  9,  48,  38, 6, 0),
-    ("熔岩傀儡",168, 23, 17,  58,  46, 7, 0),
-    ("不死骑士",186, 31, 19,  74,  62, 8, 0),
-    ("骨法师",  150, 36, 12,  82,  70, 9, 0),
-    ("史莱姆王",135, 12,  7,  70,  90, 10, 1),
+    # 名字, hp, atk, def, exp, gold, 精灵, 是否BOSS
+    # ── 区域 0 新手村外 ──
+    ("史莱姆",    36,  8,  2,   9,   7,  0, 0),
+    ("野兔",      30, 11,  1,   8,   6,  1, 0),
+    ("田鼠",      28, 10,  1,   7,   5, 15, 0),
+    ("蜂群",      24, 12,  0,   8,   6, 16, 0),
+    ("史莱姆王", 135, 12,  7,  70,  90, 10, 1),
+    # ── 区域 1 迷雾森林 ──
+    ("灰狼",      66, 15,  4,  18,  13,  2, 0),
+    ("树精",      86, 13,  8,  22,  16,  3, 0),
+    ("毒蝠",      58, 20,  3,  26,  19,  4, 0),
+    ("藤蔓",      92, 17, 10,  25,  18, 17, 0),
     ("森林守望者",250, 20, 11, 130, 170, 11, 1),
-    ("矿洞巨魔",420, 28, 17, 230, 280, 12, 1),
-    ("熔岩魔王",640, 36, 23, 400, 450, 13, 1),
-    ("深渊领主",840, 40, 24, 900, 1200, 14, 1),
+    # ── 区域 2 废弃矿洞 ──
+    ("石魔",     132, 17, 13,  34,  27,  5, 0),
+    ("岩蜘蛛",   108, 24,  8,  36,  29, 19, 0),
+    ("矿工幽灵", 120, 22, 10,  38,  31, 18, 0),
+    ("洞穴蝙蝠",  96, 26,  6,  34,  28, 20, 0),
+    ("矿洞巨魔", 420, 28, 17, 230, 280, 12, 1),
+    # ── 区域 3 火山口 ──
+    ("火蜥蜴",   212, 25, 12,  48,  38,  6, 0),
+    ("熔岩傀儡", 280, 23, 20,  58,  46,  7, 0),
+    ("火元素",   196, 31,  9,  56,  44, 21, 0),
+    ("灰烬鸟",   176, 34,  7,  52,  41, 22, 0),
+    ("熔岩魔王", 640, 36, 23, 400, 450, 13, 1),
+    # ── 区域 4 暗黑城堡 ──
+    ("不死骑士", 380, 31, 19,  74,  62,  8, 0),
+    ("骨法师",   320, 40, 12,  82,  70,  9, 0),
+    ("血仆",     350, 36, 15,  80,  68, 23, 0),
+    ("幽影",     300, 43, 10,  78,  66, 24, 0),
+    ("深渊领主", 840, 40, 24, 900, 1200, 14, 1),
 ]
 # 每区域的 2 只小怪 + 1 只首领(索引到 ENEMIES)
-AREAS = [
-    ("新手村外", [0, 1], 10),
-    ("迷雾森林", [2, 3], 11),
-    ("废弃矿洞", [4, 5], 12),
-    ("火山口",   [6, 7], 13),
-    ("暗黑城堡", [8, 9], 14),
-]
 
 # ══════════════════════════════════════════════════════════════
 # 方块画精灵(12 宽 x 9 高, 字符: ' ' '.'=透明 可用 █▓░)
@@ -367,6 +391,116 @@ SPRITES = {
         "▓▓  ▓██▓  ▓▓",
         "     ▓▓     ",
     ],
+    15: [  # 田鼠
+        "            ",
+        "  ▓▓    ▓▓  ",
+        " ▓██▓  ▓██▓ ",
+        " ▓████████▓ ",
+        " ▓█░███░██▓ ",
+        "  ▓██████▓  ",
+        "   ▓████▓ ▓ ",
+        "    ▓▓▓▓ ▓▓ ",
+        "            ",
+    ],
+    16: [  # 蜂群
+        "            ",
+        "   ▓  ░  ▓  ",
+        "  ▓█▓▓█▓▓█  ",
+        "   ▓░▓█▓░▓  ",
+        " ▓█▓▓█▓▓█▓  ",
+        "  ▓░▓█▓░▓▓  ",
+        "   ▓▓█▓▓▓   ",
+        "    ░ ▓ ░   ",
+        "            ",
+    ],
+    17: [  # 藤蔓
+        "  ▓   ▓   ▓ ",
+        " ▓█▓ ▓█▓ ▓█▓",
+        "  ▓▓  ▓▓  ▓▓",
+        " ▓▓▓ ▓▓▓ ▓▓▓",
+        "  ▓   ▓   ▓ ",
+        " ▓▓  ▓▓  ▓▓ ",
+        "▓█▓ ▓█▓ ▓█▓ ",
+        " ▓   ▓   ▓  ",
+        "            ",
+    ],
+    18: [  # 矿工幽灵
+        "            ",
+        "   ▓▓▓▓▓▓   ",
+        "  ▓██████▓  ",
+        " ▓██░██░██▓ ",
+        " ▓████████▓ ",
+        " ▓████████▓ ",
+        " ▓██▓██▓██▓ ",
+        "  ▓ ▓▓ ▓▓ ▓ ",
+        "            ",
+    ],
+    19: [  # 岩蜘蛛
+        "  ▓      ▓  ",
+        "  ▓▓    ▓▓  ",
+        " ▓▓▓▓▓▓▓▓▓▓ ",
+        "  ▓██████▓  ",
+        " ▓█░████░█▓ ",
+        "  ▓██████▓  ",
+        " ▓▓▓▓▓▓▓▓▓▓ ",
+        "  ▓▓    ▓▓  ",
+        "  ▓      ▓  ",
+    ],
+    20: [  # 洞穴蝙蝠
+        "            ",
+        "▓          ▓",
+        "▓▓        ▓▓",
+        "▓██▓    ▓██▓",
+        "▓██████▓███▓",
+        " ▓███░█░██▓ ",
+        "  ▓██████▓  ",
+        "   ▓▓  ▓▓   ",
+        "            ",
+    ],
+    21: [  # 火元素
+        "     ▓      ",
+        "    ▓█▓     ",
+        "   ▓███▓    ",
+        "  ▓█████▓   ",
+        " ▓███░███▓  ",
+        " ▓██░░░██▓  ",
+        " ▓███░███▓  ",
+        "  ▓█████▓   ",
+        "   ▓▓▓▓▓    ",
+    ],
+    22: [  # 灰烬鸟
+        "            ",
+        "     ▓▓     ",
+        "    ▓██▓    ",
+        "   ▓████▓   ",
+        " ▓▓█████▓▓  ",
+        "▓███████▓   ",
+        " ▓▓████▓▓   ",
+        "   ▓▓▓▓     ",
+        "            ",
+    ],
+    23: [  # 血仆
+        "            ",
+        "   ▓▓▓▓▓▓   ",
+        "  ▓██████▓  ",
+        "  ▓█░██░█▓  ",
+        "   ▓████▓   ",
+        "  ▓██████▓  ",
+        " ▓███▓▓███▓ ",
+        " ▓▓▓    ▓▓▓ ",
+        "            ",
+    ],
+    24: [  # 幽影
+        "            ",
+        "    ▓▓▓▓    ",
+        "  ▓▓████▓▓  ",
+        " ▓████████▓ ",
+        " ▓██░██░██▓ ",
+        " ▓████████▓ ",
+        "  ▓██▓▓██▓  ",
+        "  ▓▓ ▓▓ ▓▓  ",
+        "            ",
+    ],
 }
 
 AREA_ARTS = [
@@ -432,9 +566,9 @@ def build_glyphs(extra=()):
         codes.append(c)
         rows_of[c] = fr.render(c)
 
-    if len(codes) > 255:
+    if len(codes) > 511:
         print("".join(c for c in codes if len(c)==1 and ord(c)>=128))
-        raise SystemExit("字形数 %d 超过 255(0xFF 是结束符), 需要精简文本" % len(codes))
+        raise SystemExit("字形数 %d 超过 511(9bit 字形码上限), 需要精简文本" % len(codes))
     idx = {}
     for i, n in enumerate(codes):
         if n not in idx:
@@ -453,11 +587,12 @@ def g(ch):
 # 屏幕指令
 # ══════════════════════════════════════════════════════════════
 OP_END, OP_CLEAR, OP_COLOR, OP_TEXT, OP_NUM, OP_ART, OP_BAR, \
-OP_ENAME, OP_ANAME, OP_MSG, OP_FRAME = range(11)
+OP_ENAME, OP_ANAME, OP_MSG, OP_FRAME, OP_ADESC = range(12)
 
 SRC = {"hp": 0, "maxhp": 1, "mp": 2, "maxmp": 3, "atk": 4, "def": 5,
        "gold": 6, "lv": 7, "exp": 8, "need": 9, "pot": 10, "potxl": 11,
-       "kills": 12, "ehp": 13, "emaxhp": 14, "dmg": 15}
+       "kills": 12, "ehp": 13, "emaxhp": 14, "dmg": 15,
+       "herb": 16}
 
 def S(x, y, s, fg=WHITE, bg=BLACK):
     return [("color", fg, bg), ("text", x, y, s)]
@@ -537,7 +672,7 @@ def screen_map():
     o += S(11, 1, "·", RPG_GRAY)
     o += [("color", RPG_LGRAY, BLACK), ("aname", 13, 1)]
     o += [("color", RPG_GRAY, BLACK), ("frame", 1, 2, 38, 1)]
-    o += S(2, 4, "风吹过草原", RPG_LGRAY)
+    o += [("color", RPG_LGRAY, BLACK), ("adesc", 2, 4)]
     o += S(2, 5, "远处有东西在动", RPG_LGRAY)
     o += [("color", RPG_GRAY, BLACK), ("art", 15, 4, 254)]
     o += [("color", RPG_GRAY, BLACK), ("frame", 1, 13, 38, 1)]
@@ -548,8 +683,9 @@ def screen_map():
     o += stat_row(16, "生命", "hp", "maxhp", 5)
     o += stat_row(18, "魔力", "mp", "maxmp", CYAN)
     o += S(2, 20, "金币", RPG_GRAY); o += N(6, 20, "gold", 5, YELLOW)
-    o += S(14, 20, "药水", RPG_GRAY); o += N(18, 20, "pot", 2, WHITE)
-    o += S(23, 20, "大药水", RPG_GRAY); o += N(29, 20, "potxl", 2, WHITE)
+    o += S(8, 20, "药草", RPG_GRAY); o += N(12, 20, "herb", 2, WHITE)
+    o += S(17, 20, "药水", RPG_GRAY); o += N(21, 20, "pot", 2, WHITE)
+    o += S(26, 20, "大药水", RPG_GRAY); o += N(32, 20, "potxl", 2, WHITE)
     o += S(2, 22, "讨伐", RPG_GRAY); o += N(6, 22, "kills", 2, WHITE)
     o += S(9, 22, "/4", RPG_GRAY)
     o += S(14, 22, "经验", RPG_GRAY); o += N(18, 22, "exp", 4, WHITE)
@@ -588,28 +724,69 @@ def screen_battle():
 
 
 def screen_shop():
+    """补给站 第 1 页：消耗品"""
     o = [("clear", BLACK)]
     o += FRAME(0, 0, 40, 30, RPG_GRAY)
     o += S(2, 1, "补给站", YELLOW)
-    o += S(18, 1, "金币", RPG_GRAY); o += N(22, 1, "gold", 5, YELLOW)
+    o += S(13, 1, "金币", RPG_GRAY); o += N(17, 1, "gold", 5, YELLOW)
+    o += S(25, 1, "第 1/2 页", DGRAY)
     o += [("color", RPG_GRAY, BLACK), ("frame", 1, 2, 38, 1)]
-    o += S(2, 4, "要点什么", RPG_LGRAY)
+    o += S(2, 4, "今天想买点什么", RPG_LGRAY)
+
     o += FRAME(1, 6, 38, 3, DGRAY)
-    o += S(2, 7, "1", YELLOW); o += S(4, 7, "药水", WHITE)
-    o += S(10, 7, "回复 50 生命", RPG_GRAY); o += S(28, 7, "20 金", YELLOW)
+    o += S(2, 7, "1", YELLOW); o += S(4, 7, "药草", WHITE)
+    o += S(10, 7, "回复 30 生命", RPG_GRAY); o += S(28, 7, "15 金", YELLOW)
+
     o += FRAME(1, 10, 38, 3, DGRAY)
-    o += S(2, 11, "2", YELLOW); o += S(4, 11, "大药水", WHITE)
-    o += S(10, 11, "回复 130 生命", RPG_GRAY); o += S(28, 11, "48 金", YELLOW)
+    o += S(2, 11, "2", YELLOW); o += S(4, 11, "药水", WHITE)
+    o += S(10, 11, "回复 60 生命", RPG_GRAY); o += S(28, 11, "30 金", YELLOW)
+
     o += FRAME(1, 14, 38, 3, DGRAY)
-    o += S(2, 15, "3", YELLOW); o += S(4, 15, "强化装备", WHITE)
-    o += S(10, 15, "攻 +3  防 +2", RPG_GRAY); o += S(27, 15, "100 金", YELLOW)
-    o += S(2, 19, "4", YELLOW); o += S(4, 19, "离开", RPG_GRAY)
+    o += S(2, 15, "3", YELLOW); o += S(4, 15, "大药水", WHITE)
+    o += S(10, 15, "回复 150 生命", RPG_GRAY); o += S(27, 15, "60 金", YELLOW)
+
+    o += S(2, 19, "4", YELLOW); o += S(4, 19, "看看装备", RPG_GRAY)
+
     o += [("color", RPG_GRAY, BLACK), ("frame", 1, 21, 38, 1)]
-    o += S(2, 23, "药水", RPG_GRAY); o += N(6, 23, "pot", 2, WHITE)
-    o += S(11, 23, "大药水", RPG_GRAY); o += N(17, 23, "potxl", 2, WHITE)
-    o += S(21, 23, "攻击", RPG_GRAY); o += N(25, 23, "atk", 3, WHITE)
-    o += S(29, 23, "防御", RPG_GRAY); o += N(33, 23, "def", 3, WHITE)
-    o += S(2, 26, "强化会越来越贵", DGRAY)
+    o += S(2, 23, "药草", RPG_GRAY); o += N(6, 23, "herb", 2, WHITE)
+    o += S(9, 23, "药水", RPG_GRAY); o += N(13, 23, "pot", 2, WHITE)
+    o += S(16, 23, "大药水", RPG_GRAY); o += N(22, 23, "potxl", 2, WHITE)
+    o += S(2, 25, "攻击", RPG_GRAY); o += N(6, 25, "atk", 3, WHITE)
+    o += S(12, 25, "防御", RPG_GRAY); o += N(16, 25, "def", 3, WHITE)
+    o += S(2, 27, "打不过就多备点药", DGRAY)
+    o += [("end",)]
+    return o
+
+
+def screen_shop2():
+    """补给站 第 2 页：永久强化"""
+    o = [("clear", BLACK)]
+    o += FRAME(0, 0, 40, 30, RPG_GRAY)
+    o += S(2, 1, "补给站 · 装备", YELLOW)
+    o += S(13, 1, "金币", RPG_GRAY); o += N(17, 1, "gold", 5, YELLOW)
+    o += S(25, 1, "第 2/2 页", DGRAY)
+    o += [("color", RPG_GRAY, BLACK), ("frame", 1, 2, 38, 1)]
+    o += S(2, 4, "买件像样的东西", RPG_LGRAY)
+
+    o += FRAME(1, 6, 38, 3, DGRAY)
+    o += S(2, 7, "1", YELLOW); o += S(4, 7, "力量护符", WHITE)
+    o += S(12, 7, "攻击永久 +3", RPG_GRAY); o += S(27, 7, "120 金", YELLOW)
+
+    o += FRAME(1, 10, 38, 3, DGRAY)
+    o += S(2, 11, "2", YELLOW); o += S(4, 11, "守护护符", WHITE)
+    o += S(12, 11, "防御永久 +3", RPG_GRAY); o += S(27, 11, "120 金", YELLOW)
+
+    o += FRAME(1, 14, 38, 3, DGRAY)
+    o += S(2, 15, "3", YELLOW); o += S(4, 15, "大师之证", WHITE)
+    o += S(12, 15, "攻防各 +3", RPG_GRAY); o += S(27, 15, "200 金", YELLOW)
+
+    o += S(2, 19, "4", YELLOW); o += S(4, 19, "回地图", RPG_GRAY)
+
+    o += [("color", RPG_GRAY, BLACK), ("frame", 1, 21, 38, 1)]
+    o += S(2, 23, "当前攻击", RPG_GRAY); o += N(10, 23, "atk", 3, WHITE)
+    o += S(15, 23, "当前防御", RPG_GRAY); o += N(23, 23, "def", 3, WHITE)
+    o += S(2, 25, "护符效果永久保留", DGRAY)
+    o += S(2, 27, "金币不够就去多打几场", DGRAY)
     o += [("end",)]
     return o
 
@@ -665,6 +842,7 @@ SCREENS = {
     "map":    screen_map(),
     "battle": screen_battle(),
     "shop":   screen_shop(),
+    "shop2":  screen_shop2(),
     "dead":   screen_dead(),
     "win":    screen_win(),
     "pic":    screen_pic(),
@@ -672,6 +850,7 @@ SCREENS = {
 
 _extra_text = [op[3] for ops in SCREENS.values() for op in ops if op[0] == "text"]
 _extra_text += [t for _, t in MSGS]
+_extra_text += ADESS          # 区域环境描述也要进字库
 CODES, ROWS_OF, GIDX = build_glyphs(_extra_text)
 
 # ══════════════════════════════════════════════════════════════
@@ -693,7 +872,7 @@ SCREEN_ADDR = {}
 
 def enc_string(s):
     """写入字符串表, 返回起始地址(以字形为单位), 末尾 0xFF 结束"""
-    return STR.add_bytes([g(c) for c in s] + [0xFF])
+    return STR.add_bytes([g(c) for c in s] + [0xFFFF])
 
 def emit(ops):
     out = []
@@ -710,7 +889,7 @@ def emit(ops):
             out.append((OP_TEXT, y, x, enc_string(s)))
         elif k == "num":
             x, y, src, dg = op[1], op[2], op[3], op[4]
-            out.append((OP_NUM, y, x, ((dg & 0xF) << 8) | (src & 0xF)))
+            out.append((OP_NUM, y, x, ((dg & 0xF) << 8) | (src & 0x1F)))
         elif k == "bar":
             x, y, a, b, w = op[1], op[2], op[3], op[4], op[5]
             # arg[3:0]=cur源 arg[7:4]=max源 arg[12:8]=宽度(格数)
@@ -722,6 +901,8 @@ def emit(ops):
             out.append((OP_ENAME, op[2], op[1], 0))
         elif k == "aname":
             out.append((OP_ANAME, op[2], op[1], 0))
+        elif k == "adesc":
+            out.append((OP_ADESC, op[2], op[1], 0))
         elif k == "msg":
             out.append((OP_MSG, op[2], op[1], 0))
         elif k == "frame":
@@ -912,7 +1093,7 @@ def w_hex(name, words, width):
 
 
 font_words = []
-for code in range(256):
+for code in range(512):
     if code < len(CODES):
         rows = ROWS_OF[CODES[code]]
     else:
@@ -925,7 +1106,7 @@ for (op, y, x, arg) in CMD_ROM:
     cmd_words.append((op << 28) | (y << 23) | (x << 17) | (arg & 0x1FFFF))
 w_hex("cmd.hex", cmd_words, 32)
 
-w_hex("str.hex", STR.data, 8)
+w_hex("str.hex", STR.data, 16)
 w_hex("art.hex", ART.data, 8)
 
 # 名字表 -> Verilog case
@@ -935,8 +1116,8 @@ for i, (name, _, _) in enumerate(AREAS):
     chars = (chars + [0] * 6)[:6]
     v = 0
     for k, c in enumerate(chars):
-        v |= c << (k * 8)
-    area_case.append("      4'd%d: area_name = 48'h%012X;" % (i, v))
+        v |= c << (k * 9)
+    area_case.append("      4'd%d: area_name = 54'h%014X;" % (i, v))
 
 enemy_name_case = []
 for i, row in enumerate(ENEMIES):
@@ -944,20 +1125,27 @@ for i, row in enumerate(ENEMIES):
     chars = (chars + [0] * 7)[:7]
     v = 0
     for k, c in enumerate(chars):
-        v |= c << (k * 8)
-    enemy_name_case.append("      4'd%d: ename = 56'h%014X;" % (i, v))
+        v |= c << (k * 9)
+    enemy_name_case.append("      5'd%d: ename = 63'h%016X;" % (i, v))
 
 enemy_stat_case = []
 for i, (nm, hp, atk, df, exp, gold, spr, boss) in enumerate(ENEMIES):
     v = (hp & 0x3FF) | ((atk & 0xFF) << 10) | ((df & 0xFF) << 18) | \
         ((exp & 0x3FF) << 26) | ((gold & 0xFFF) << 36) | \
-        ((spr & 0x1F) << 48) | ((boss & 1) << 53) | ((i & 0xF) << 54)
-    enemy_stat_case.append("      4'd%d: es = 64'h%016X;" % (i, v))
+        ((spr & 0x1F) << 48) | ((boss & 1) << 53) | ((i & 0x1F) << 54)
+    enemy_stat_case.append("      5'd%d: es = 64'h%016X;" % (i, v))
+
+adesc_addr = [enc_string(t) for t in ADESS]
+adesc_case = []
+for i, a in enumerate(adesc_addr):
+    adesc_case.append("      3'd%d: adesc = 11'd%d;" % (i, a))
 
 area_mob_case = []
 for i, (nm, mobs, boss) in enumerate(AREAS):
-    v = (mobs[0] & 0xF) | ((mobs[1] & 0xF) << 4) | ((boss & 0xF) << 8)
-    area_mob_case.append("      3'd%d: am = 12'h%03X;" % (i, v))
+    v = ((mobs[0] & 0x1F) | ((mobs[1] & 0x1F) << 5) |
+         ((mobs[2] & 0x1F) << 10) | ((mobs[3] & 0x1F) << 15) |
+         ((boss & 0x1F) << 20))
+    area_mob_case.append("      3'd%d: am = 25'h%07X;" % (i, v))
 
 msg_addr = {}
 for name, text in MSGS:
@@ -968,7 +1156,7 @@ for name, text in MSGS:
 
 # 消息字符串是在上面才追加进去的, 所以必须重新写一次 str.hex。
 # (原来漏了这步, 结果 MSG 读到表尾之外, 整个战斗页被刷成垃圾)
-w_hex("str.hex", STR.data, 8)
+w_hex("str.hex", STR.data, 16)
 print("字符串表最终长度: %d 字节 (含 %d 条消息)" % (len(STR.data), len(MSGS)))
 
 msg_lines = "\n".join("    localparam [10:0] %-14s = 11'd%d;" % (n, a)
@@ -977,7 +1165,7 @@ msg_lines = "\n".join("    localparam [10:0] %-14s = 11'd%d;" % (n, a)
 art_lines = "\n".join("            6'd%-3d: b = 12'd%d;" % (k, v) for k, v in sorted(SPR_BASE.items()))
 
 defs_lines = "\n".join("`define %-14s 11'd%d" % (n, a) for n, a in msg_addr.items())
-defs_lines += "\n`define G_DIG_BASE     8'd%d" % GIDX["0"]   # '0'..'9' 连续排布
+defs_lines += "\n`define G_DIG_BASE     9'd%d" % GIDX["0"]   # '0'..'9' 连续排布
 with open(os.path.join(GEN, "rpg_defs.vh"), "w", encoding="utf-8", newline="\n") as f:
     f.write("// 自动生成: 消息字符串地址(用 `include \"rpg_defs.vh\" 引入)\n")
     f.write("`ifndef RPG_DEFS_VH\n`define RPG_DEFS_VH\n")
@@ -1022,11 +1210,11 @@ ui_v = """//====================================================================
 
 module font_rom (
     input  wire        clk,
-    input  wire [7:0]  glyph,
+    input  wire [8:0]  glyph,
     input  wire [3:0]  row,
     output reg  [15:0] data
 );
-    reg [15:0] mem [0:4095];
+    reg [15:0] mem [0:8191];
     initial $readmemh("rtl/gen/font.hex", mem);
     always @(posedge clk) data <= mem[{glyph, row}];
 endmodule
@@ -1044,9 +1232,9 @@ endmodule
 module str_rom (
     input  wire       clk,
     input  wire [10:0] addr,
-    output reg  [7:0] data
+    output reg  [15:0] data
 );
-    reg [7:0] mem [0:2047];
+    reg [15:0] mem [0:2047];
     initial $readmemh("rtl/gen/str.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
@@ -1065,25 +1253,33 @@ endmodule
 // 数据表(直接综合成查找表)
 //-----------------------------------------------------------------------------
 module rpg_tables (
-    input  wire [3:0]  ename_id,
+    input  wire [4:0]  ename_id,
     input  wire [2:0]  area_id,
-    input  wire [3:0]  stat_id,
+    input  wire [4:0]  stat_id,
     input  wire        sel,          // 0=名字 1=数值
-    output reg  [55:0] ename,
-    output reg  [47:0] area_name,
+    output reg  [62:0] ename,
+    output reg  [53:0] area_name,
+    output reg  [54:0] adesc,
     output reg  [63:0] es
 );
     always @(*) begin
         case (ename_id)
 %s
-        default: ename = 56'd0;
+        default: ename = 63'd0;
         endcase
     end
 
     always @(*) begin
         case (area_id)
 %s
-        default: area_name = 48'd0;
+        default: area_name = 54'd0;
+        endcase
+    end
+
+    always @(*) begin
+        case (area_id)
+%s
+        default: adesc = 55'd0;
         endcase
     end
 
@@ -1100,19 +1296,23 @@ endmodule
 //-----------------------------------------------------------------------------
 module rpg_area (
     input  wire [2:0]  area,
-    output reg  [3:0]  mob0,
-    output reg  [3:0]  mob1,
-    output reg  [3:0]  boss
+    output reg  [4:0]  mob0,
+    output reg  [4:0]  mob1,
+    output reg  [4:0]  mob2,
+    output reg  [4:0]  mob3,
+    output reg  [4:0]  boss
 );
-    reg [11:0] am;
+    reg [24:0] am;
     always @(*) begin
         case (area)
 %s
-        default: am = 12'd0;
+        default: am = 25'd0;
         endcase
-        mob0 = am[3:0];
-        mob1 = am[7:4];
-        boss = am[11:8];
+        mob0 = am[4:0];
+        mob1 = am[9:5];
+        mob2 = am[14:10];
+        mob3 = am[19:15];
+        boss = am[24:20];
     end
 endmodule
 
@@ -1120,28 +1320,30 @@ endmodule
 // 语句表地址
 //-----------------------------------------------------------------------------
 module rpg_screens (
-    input  wire [2:0]  scene,
+    input  wire [3:0]  scene,
     output reg  [9:0]  addr
 );
     always @(*) begin
         case (scene)
-            3'd0: addr = 10'd%d;   // title
-            3'd1: addr = 10'd%d;   // class
-            3'd2: addr = 10'd%d;   // map
-            3'd3: addr = 10'd%d;   // battle
-            3'd4: addr = 10'd%d;   // shop
-            3'd5: addr = 10'd%d;   // dead
-            3'd6: addr = 10'd%d;   // win
-            3'd7: addr = 10'd%d;   // pic
+            4'd0: addr = 10'd%d;   // title
+            4'd1: addr = 10'd%d;   // class
+            4'd2: addr = 10'd%d;   // map
+            4'd3: addr = 10'd%d;   // battle
+            4'd4: addr = 10'd%d;   // shop
+            4'd5: addr = 10'd%d;   // dead
+            4'd6: addr = 10'd%d;   // win
+            4'd7: addr = 10'd%d;   // pic
+            4'd8: addr = 10'd%d;   // shop2
             default: addr = 10'd0;
         endcase
     end
 endmodule
-""" % ("\n".join(enemy_name_case), "\n".join(area_case), "\n".join(enemy_stat_case),
+""" % ("\n".join(enemy_name_case), "\n".join(area_case), "\n".join(adesc_case),
+       "\n".join(enemy_stat_case),
        "\n".join(area_mob_case),
        SCREEN_ADDR["title"], SCREEN_ADDR["class"], SCREEN_ADDR["map"],
        SCREEN_ADDR["battle"], SCREEN_ADDR["shop"], SCREEN_ADDR["dead"], SCREEN_ADDR["win"],
-       SCREEN_ADDR["pic"])
+       SCREEN_ADDR["pic"], SCREEN_ADDR["shop2"])
 
 with open(os.path.join(GEN, "ui_rom.v"), "w", encoding="utf-8", newline="\n") as f:
     f.write(ui_v)

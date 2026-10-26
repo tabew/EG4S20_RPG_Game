@@ -71,7 +71,7 @@ module rpg_top #(
     wire        anim_on;
     wire [2:0]  anim_frame;
     wire [10:0] waddr;
-    wire [15:0] wdata;
+    wire [16:0] wdata;
 
     rpg_core u_core (
         .clk   (clk_pix),

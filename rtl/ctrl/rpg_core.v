@@ -23,10 +23,10 @@ module rpg_core (
 
     output reg         we,
     output reg  [10:0] waddr,
-    output reg  [15:0] wdata,
+    output reg  [16:0] wdata,
 
     // 调试端口(仿真观察 + 上板可接 LED/逻辑分析仪)
-    output wire [2:0]  dbg_scene,
+    output wire [3:0]  dbg_scene,
     output wire [9:0]  dbg_hp,
     output wire [9:0]  dbg_maxhp,
     output wire [7:0]  dbg_atk,
@@ -45,22 +45,23 @@ module rpg_core (
     //---------------------------------------------------------
     // 常量
     //---------------------------------------------------------
-    localparam [2:0] SC_TITLE = 3'd0, SC_CLASS = 3'd1, SC_MAP = 3'd2,
-                     SC_BATTLE = 3'd3, SC_SHOP = 3'd4, SC_DEAD = 3'd5,
-                     SC_WIN   = 3'd6, SC_PIC = 3'd7;
+    localparam [3:0] SC_TITLE = 4'd0, SC_CLASS = 4'd1, SC_MAP = 4'd2,
+                     SC_BATTLE = 4'd3, SC_SHOP = 4'd4, SC_DEAD = 4'd5,
+                     SC_WIN   = 4'd6, SC_PIC = 4'd7, SC_SHOP2 = 4'd8;
 
     localparam [1:0] CL_WAR = 2'd0, CL_MAG = 2'd1, CL_RAN = 2'd2;
 
     // 自绘图元码(与 build_rom.py 的 CUSTOM 顺序一致)
-    localparam [7:0] G_FULL = 8'd1, G_SHADE = 8'd2,
-                     G_H    = 8'd6, G_V     = 8'd7,
-                     G_TL   = 8'd8, G_TR    = 8'd9,
-                     G_BL   = 8'd10, G_BR   = 8'd11;
+    // 9 位: 和格子的字形字段一样宽, 否则 {bg,fg,glyph} 拼出来少一位会错位
+    localparam [8:0] G_FULL = 9'd1, G_SHADE = 9'd2,
+                     G_H    = 9'd6, G_V     = 9'd7,
+                     G_TL   = 9'd8, G_TR    = 9'd9,
+                     G_BL   = 9'd10, G_BR   = 9'd11;
 
     //---------------------------------------------------------
     // 游戏寄存器
     //---------------------------------------------------------
-    reg [2:0]  scene;
+    reg [3:0]  scene;
 
     // 动态插图：帧号 + 自动播放计时 + 暂停
 `ifdef SIM_FAST
@@ -97,13 +98,13 @@ module rpg_core (
     reg [9:0]  hp, maxhp, mp, maxmp;
     reg [7:0]  atk, def, wb, ab;
     reg [11:0] gold;
-    reg [3:0]  lv, pot, potxl;
+    reg [3:0]  lv, herb, pot, potxl;
     reg [9:0]  exp, need;
     reg [2:0]  area;
     reg [3:0]  kills;
     reg        boss_dead;
 
-    reg [3:0]  enemy_id;
+    reg [4:0]  enemy_id;
     reg [9:0]  ehp, emaxhp;
     reg [7:0]  eatk, edef;
     reg [9:0]  eexp, egold;
@@ -187,15 +188,16 @@ module rpg_core (
     reg  [9:0]  cmd_a;
     wire [31:0] cmd_d;
     reg  [10:0] str_a;
-    wire [7:0]  str_d;
+    wire [15:0] str_d;
     reg  [11:0] art_a;
     wire [7:0]  art_d;
 
     wire [9:0]  scr_addr;
-    wire [55:0] tab_ename;
-    wire [47:0] tab_aname;
+    wire [62:0] tab_ename;
+    wire [53:0] tab_aname;
+    wire [54:0] tab_adesc;
     wire [63:0] tab_es;
-    wire [3:0]  ar_mob0, ar_mob1, ar_boss;
+    wire [4:0]  ar_mob0, ar_mob1, ar_mob2, ar_mob3, ar_boss;
     wire [11:0] art_base;
 
     cmd_rom     u_cmd  (.clk(clk), .addr(cmd_a), .data(cmd_d));
@@ -203,7 +205,8 @@ module rpg_core (
     art_rom     u_art  (.clk(clk), .addr(art_a), .data(art_d));
     rpg_screens u_scr  (.scene(scene), .addr(scr_addr));
     rpg_artbase u_ab   (.id(art_id), .b(art_base));
-    rpg_area    u_areamap (.area(area), .mob0(ar_mob0), .mob1(ar_mob1), .boss(ar_boss));
+    rpg_area    u_areamap (.area(area), .mob0(ar_mob0), .mob1(ar_mob1),
+                           .mob2(ar_mob2), .mob3(ar_mob3), .boss(ar_boss));
     rpg_tables  u_tab  (
         .ename_id (enemy_id),
         .area_id  (area),
@@ -211,6 +214,7 @@ module rpg_core (
         .sel      (1'b0),
         .ename    (tab_ename),
         .area_name(tab_aname),
+        .adesc    (tab_adesc),
         .es       (tab_es)
     );
 
@@ -243,7 +247,7 @@ module rpg_core (
     reg [5:0]  frm_x, frm_y, frm_i;
     reg [5:0]  frm_w;
     reg [4:0]  frm_h, frm_j;
-    reg [7:0]  ch;
+    reg [8:0]  ch;
 
     wire [3:0]  op   = cmd_d[31:28];
     wire [4:0]  cy   = cmd_d[27:23];
@@ -253,8 +257,8 @@ module rpg_core (
     // 数字显示的取值
     reg [13:0] src_val;
     always @(*) begin
-        case (arg[3:0])
-            8'd0:  src_val = {4'd0, hp};
+        case (arg[4:0])
+            5'd0:  src_val = {4'd0, hp};
             8'd1:  src_val = {4'd0, maxhp};
             8'd2:  src_val = {6'd0, mp};
             8'd3:  src_val = {6'd0, maxmp};
@@ -264,12 +268,12 @@ module rpg_core (
             8'd7:  src_val = {10'd0, lv};
             8'd8:  src_val = {4'd0, exp};
             8'd9:  src_val = {4'd0, need};
-            8'd10: src_val = {10'd0, pot};
-            8'd11: src_val = {10'd0, potxl};
-            8'd12: src_val = {10'd0, kills};
-            8'd13: src_val = {4'd0, ehp};
-            8'd14: src_val = {4'd0, emaxhp};
-            8'd15: src_val = {4'd0, last_dmg};
+            5'd10: src_val = {10'd0, pot};
+            5'd11: src_val = {10'd0, potxl};
+            5'd12: src_val = {10'd0, kills};
+            5'd13: src_val = {4'd0, ehp};
+            5'd14: src_val = {4'd0, emaxhp};
+            5'd15: src_val = {4'd0, last_dmg};
             default: src_val = 14'd0;
         endcase
     end
@@ -326,7 +330,7 @@ module rpg_core (
             rendering <= 1'b1;
             we        <= 1'b0;
             waddr     <= 11'd0;
-            wdata     <= 16'd0;
+            wdata     <= 17'd0;
             pc        <= 10'd0;
             fg        <= 4'd3;
             bg        <= 4'd0;
@@ -455,6 +459,12 @@ module rpg_core (
                     ty   <= cy;
                     rstt <= R_TXT_A;
                 end
+                4'd11: begin                      // ADESC: 按当前区域取环境描述
+                    sptr <= tab_adesc[area*11 +: 11];
+                    tx   <= cx;
+                    ty   <= cy;
+                    rstt <= R_TXT_A;
+                end
                 4'd10: begin                      // FRAME
                     frm_x <= cx;
                     frm_y <= {1'b0, cy};
@@ -474,7 +484,7 @@ module rpg_core (
             R_CLR: begin
                 we    <= 1'b1;
                 waddr <= cnt11;
-                wdata <= {bg, 4'd0, 8'd0};
+                wdata <= {bg, 4'd0, 9'd0};
                 if (cnt11 == 11'd1199) begin
                     pc   <= pc + 10'd1;
                     rstt <= R_FETCH;
@@ -493,13 +503,13 @@ module rpg_core (
             end
 
             R_TXT_B: begin
-                ch   <= str_d;
+                ch   <= str_d[8:0];
                 rstt <= R_TXT_C;
             end
 
             R_TXT_C: begin
                 // sptr 越界(或字符串没有结束符)时也要收手, 否则会把整屏刷成垃圾
-                if (ch == 8'hFF || sptr >= 11'd2040) begin
+                if (str_d == 16'hFFFF || sptr >= 11'd2040) begin
                     pc   <= pc + 10'd1;
                     rstt <= R_FETCH;
                 end else begin
@@ -599,8 +609,8 @@ module rpg_core (
                         we    <= 1'b1;
                         waddr <= cell_a;
                         wdata <= {bg, fg,
-                                  (ncell == 6'd7) ? tab_ename[cnt11[2:0]*8 +: 8]
-                                                  : tab_aname[cnt11[2:0]*8 +: 8]};
+                                  (ncell == 6'd7) ? tab_ename[cnt11[2:0]*9 +: 9]
+                                                  : tab_aname[cnt11[2:0]*9 +: 9]};
                     end
                     tx    <= tx + 6'd1;
                     cnt11 <= cnt11 + 11'd1;
@@ -628,7 +638,7 @@ module rpg_core (
                                                  (frm_i == frm_w - 6'd1) ? G_BR : G_H) :
                               (frm_j == 4'd0) ? ((frm_i == 6'd0) ? G_TL :
                                                  (frm_i == frm_w - 6'd1) ? G_TR : G_H) :
-                              ((frm_i == 6'd0) || (frm_i == frm_w - 6'd1)) ? G_V : 8'd0};
+                              ((frm_i == 6'd0) || (frm_i == frm_w - 6'd1)) ? G_V : 9'd0};
                     frm_i <= frm_i + 6'd1;
                 end
             end
@@ -673,7 +683,7 @@ module rpg_core (
             area      <= 3'd0;
             kills     <= 4'd0;
             boss_dead <= 1'b0;
-            enemy_id  <= 4'd0;
+            enemy_id  <= 5'd0;
             ehp       <= 10'd36;  emaxhp <= 10'd36;
             eatk      <= 8'd8;    edef   <= 8'd2;
             eexp      <= 10'd9;   egold  <= 10'd7;
@@ -807,7 +817,7 @@ module rpg_core (
                             gold      <= 12'd40;
                             lv        <= 4'd1;
                             exp       <= 10'd0;  need <= 10'd24;
-                            pot       <= 4'd2;   potxl <= 4'd0;
+                            herb      <= 4'd2;   pot   <= 4'd1;   potxl <= 4'd0;
                             wb        <= 8'd0;   ab    <= 8'd0;
                             area      <= 3'd0;   kills <= 4'd0;
                             boss_dead <= 1'b0;
@@ -818,7 +828,13 @@ module rpg_core (
 
                     SC_MAP: begin
                         if (key_e[0]) begin
-                            enemy_id     <= rnd[0] ? ar_mob0 : ar_mob1;
+                            // 每个区域 4 只小怪，用随机数低 2 位挑
+                            case (rnd[1:0])
+                                2'd0:    enemy_id <= ar_mob0;
+                                2'd1:    enemy_id <= ar_mob1;
+                                2'd2:    enemy_id <= ar_mob2;
+                                default: enemy_id <= ar_mob3;
+                            endcase
                             start_battle <= 1'b1;
                         end else if (key_e[1]) begin
                             scene  <= SC_SHOP;
@@ -873,7 +889,12 @@ module rpg_core (
                                 bst      <= B_DELAY;
                             end else if (pot != 4'd0) begin
                                 pot      <= pot - 4'd1;
-                                hp       <= (hp + 10'd50 > maxhp) ? maxhp : (hp + 10'd50);
+                                hp       <= (hp + 10'd60 > maxhp) ? maxhp : (hp + 10'd60);
+                                msg_addr <= `MSG_POTION;
+                                bst      <= B_DELAY;
+                            end else if (herb != 4'd0) begin
+                                herb     <= herb - 4'd1;
+                                hp       <= (hp + 10'd30 > maxhp) ? maxhp : (hp + 10'd30);
                                 msg_addr <= `MSG_POTION;
                                 bst      <= B_DELAY;
                             end else begin
@@ -893,26 +914,54 @@ module rpg_core (
                         end
                     end
 
-                    SC_SHOP: begin
+                    SC_SHOP: begin                       // 第 1 页：消耗品
                         if (key_e[0]) begin
-                            if (gold >= 12'd20) begin
-                                gold     <= gold - 12'd20;
-                                pot      <= pot + 4'd1;
+                            if (gold >= 12'd15) begin
+                                gold <= gold - 12'd15;
+                                herb <= herb + 4'd1;
                                 msg_addr <= `MSG_BUY;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[1]) begin
-                            if (gold >= 12'd48) begin
-                                gold     <= gold - 12'd48;
-                                potxl    <= potxl + 4'd1;
+                            if (gold >= 12'd30) begin
+                                gold <= gold - 12'd30;
+                                pot  <= pot + 4'd1;
                                 msg_addr <= `MSG_BUY;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[2]) begin
-                            if (gold >= 12'd100) begin
-                                gold     <= gold - 12'd100;
-                                atk      <= atk + 8'd3;
-                                def      <= def + 8'd2;
+                            if (gold >= 12'd60) begin
+                                gold  <= gold - 12'd60;
+                                potxl <= potxl + 4'd1;
+                                msg_addr <= `MSG_BUY;
+                            end
+                            redraw <= 1'b1;
+                        end else if (key_e[3]) begin
+                            scene  <= SC_SHOP2;      // 翻到装备页
+                            redraw <= 1'b1;
+                        end
+                    end
+
+                    SC_SHOP2: begin                      // 第 2 页：永久强化
+                        if (key_e[0]) begin
+                            if (gold >= 12'd120) begin
+                                gold <= gold - 12'd120;
+                                atk  <= atk + 8'd3;
+                                msg_addr <= `MSG_UPGRADE;
+                            end
+                            redraw <= 1'b1;
+                        end else if (key_e[1]) begin
+                            if (gold >= 12'd120) begin
+                                gold <= gold - 12'd120;
+                                def  <= def + 8'd3;
+                                msg_addr <= `MSG_UPGRADE;
+                            end
+                            redraw <= 1'b1;
+                        end else if (key_e[2]) begin
+                            if (gold >= 12'd200) begin
+                                gold <= gold - 12'd200;
+                                atk  <= atk + 8'd3;
+                                def  <= def + 8'd3;
                                 msg_addr <= `MSG_UPGRADE;
                             end
                             redraw <= 1'b1;
