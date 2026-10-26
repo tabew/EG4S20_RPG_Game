@@ -706,7 +706,7 @@ def screen_battle():
     o += S(18, 1, "生命", RPG_GRAY)
     o += BAR(21, 1, "ehp", "emaxhp", 12, RPG_RED, DGRAY)
     o += [("color", RPG_GRAY, BLACK), ("frame", 1, 2, 38, 1)]
-    o += [("color", MAGENTA, BLACK), ("art", 14, 3, 255)]
+    # 立绘区 (15,3)-(23,11) 留空, 由图层的 mon_layer 盖上
     o += [("color", RPG_GRAY, BLACK), ("frame", 1, 12, 38, 1)]
     o += [("color", WHITE, BLACK), ("msg", 2, 13)]
     o += S(2, 15, "伤害", RPG_GRAY); o += N(6, 15, "dmg", 4, ORANGE)

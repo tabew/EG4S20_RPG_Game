@@ -39,7 +39,12 @@ module rpg_core (
 
     // 动态插图（给 rpg_video 的图片层）
     output reg         anim_on,
-    output reg  [2:0]  anim_frame
+    output reg  [2:0]  anim_frame,
+
+    // 怪物立绘（战斗界面，带淡入淡出）
+    output wire        mon_on,
+    output wire [4:0]  mon_id,
+    output wire [3:0]  mon_fade
 );
 
     //---------------------------------------------------------
@@ -93,6 +98,42 @@ module rpg_core (
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) anim_on <= 1'b0;
         else        anim_on <= (scene == SC_PIC);
+    end
+
+    //---------------------------------------------------------
+    // 怪物立绘：淡入淡出
+    //   进战斗 -> 从 0 涨到 8；敌人倒下 -> 从 8 退到 0，退干净才回地图
+    //---------------------------------------------------------
+`ifdef SIM_FAST
+    localparam [21:0] FADE_STEP = 22'd20000;      // 仿真: 每级约 0.8ms
+`else
+    localparam [21:0] FADE_STEP = 22'd2_000_000;  // 上板: 每级约 80ms, 全程 0.64s
+`endif
+
+    reg [3:0]  mon_fade_r;
+    reg [21:0] fade_tmr;
+    reg        fade_dir;        // 1=淡入 0=淡出
+
+    assign mon_on   = (scene == SC_BATTLE);
+    assign mon_id   = enemy_id;
+    assign mon_fade = mon_fade_r;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            mon_fade_r <= 4'd0;
+            fade_tmr   <= 22'd0;
+            fade_dir   <= 1'b1;
+        end else if (scene != SC_BATTLE) begin
+            mon_fade_r <= 4'd0;
+            fade_tmr   <= 22'd0;
+            fade_dir   <= 1'b1;          // 下一场从头淡入
+        end else if (fade_tmr >= FADE_STEP) begin
+            fade_tmr <= 22'd0;
+            if (fade_dir && mon_fade_r < 4'd8)      mon_fade_r <= mon_fade_r + 4'd1;
+            else if (!fade_dir && mon_fade_r > 4'd0) mon_fade_r <= mon_fade_r - 4'd1;
+        end else begin
+            fade_tmr <= fade_tmr + 22'd1;
+        end
     end
     reg [1:0]  cls;
     reg [9:0]  hp, maxhp, mp, maxmp;
@@ -745,6 +786,7 @@ module rpg_core (
 
                     B_CHECK: begin
                         if (ehp == 10'd0) begin
+                            fade_dir <= 1'b0;            // 立绘淡出
                             gold     <= gold + egold;
                             exp      <= exp + eexp;
                             kills    <= (kills < 4'd15) ? (kills + 4'd1) : kills;
@@ -773,7 +815,7 @@ module rpg_core (
                             mp       <= maxmp + 10'd8;
                             msg_addr <= `MSG_LEVEL;
                             redraw   <= 1'b1;
-                        end else begin
+                        end else if (mon_fade_r == 4'd0) begin
                             scene  <= SC_MAP;
                             bst    <= B_IDLE;
                             redraw <= 1'b1;

@@ -70,6 +70,9 @@ module rpg_top #(
     wire        we;
     wire        anim_on;
     wire [2:0]  anim_frame;
+    wire        mon_on;
+    wire [4:0]  mon_id;
+    wire [3:0]  mon_fade;
     wire [10:0] waddr;
     wire [16:0] wdata;
 
@@ -81,7 +84,10 @@ module rpg_top #(
         .waddr (waddr),
         .wdata (wdata),
         .anim_on    (anim_on),
-        .anim_frame (anim_frame)
+        .anim_frame (anim_frame),
+        .mon_on     (mon_on),
+        .mon_id     (mon_id),
+        .mon_fade   (mon_fade)
     );
 
     wire        vga_hs, vga_vs, vga_de;
@@ -95,6 +101,9 @@ module rpg_top #(
         .wdata (wdata),
         .anim_on    (anim_on),
         .anim_frame (anim_frame),
+        .mon_on     (mon_on),
+        .mon_id     (mon_id),
+        .mon_fade   (mon_fade),
         .hs    (vga_hs),
         .vs    (vga_vs),
         .de    (vga_de),

@@ -26,6 +26,11 @@ module rpg_video (
     input  wire        anim_on,
     input  wire [2:0]  anim_frame,
 
+    // 怪物立绘层（战斗界面，带淡入淡出）
+    input  wire        mon_on,
+    input  wire [4:0]  mon_id,
+    input  wire [3:0]  mon_fade,
+
     // 视频输出
     output wire        hs,
     output wire        vs,
@@ -188,6 +193,25 @@ module rpg_video (
     end
 
     //---------------------------------------------------------
+    // 怪物立绘层
+    //---------------------------------------------------------
+    wire        mon_win;
+    wire [15:0] mon_rgb;
+    wire        mon_valid;
+
+    mon_layer u_mon (
+        .clk    (clk),
+        .rst_n  (rst_n),
+        .mon_id (mon_id),
+        .fade   (mon_fade),
+        .x      (x),
+        .y      (y),
+        .in_win (mon_win),
+        .rgb    (mon_rgb),
+        .valid  (mon_valid)
+    );
+
+    //---------------------------------------------------------
     // 调色板
     //---------------------------------------------------------
     function [15:0] pal;
@@ -217,8 +241,11 @@ module rpg_video (
     wire        bit_on   = gw_r[15 - sx3];
     wire [15:0] char_pix = pal(bit_on ? cell_r3[12:9] : cell_r3[16:13]);
 
-    // 混层：插图窗口内且该格没有字形 -> 出插图；否则出字符（文字/边框压在图上）
-    wire [15:0] pix = (win3 && cell_r3[8:0] == 9'd0) ? anim_rgb_r : char_pix;
+    // 混层优先级：怪物立绘 > 动态插图 > 字符层
+    //   前两者只在"该格没有字形"时透出，所以文字和边框始终压在图上
+    wire cell_blank = (cell_r3[8:0] == 9'd0);
+    wire [15:0] pix = (mon_on && mon_valid && cell_blank) ? mon_rgb :
+                      (win3 && cell_blank)                ? anim_rgb_r : char_pix;
 
     assign hs  = hs3;
     assign vs  = vs3;

@@ -193,11 +193,11 @@ module rpg_screens (
             4'd1: addr = 10'd20;   // class
             4'd2: addr = 10'd72;   // map
             4'd3: addr = 10'd174;   // battle
-            4'd4: addr = 10'd230;   // shop
-            4'd5: addr = 10'd368;   // dead
-            4'd6: addr = 10'd380;   // win
-            4'd7: addr = 10'd406;   // pic
-            4'd8: addr = 10'd304;   // shop2
+            4'd4: addr = 10'd228;   // shop
+            4'd5: addr = 10'd366;   // dead
+            4'd6: addr = 10'd378;   // win
+            4'd7: addr = 10'd404;   // pic
+            4'd8: addr = 10'd302;   // shop2
             default: addr = 10'd0;
         endcase
     end
