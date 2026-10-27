@@ -1,14 +1,18 @@
 //=============================================================================
-// clk_gen.v —— 时钟生成
+// clk_gen.v —— 时钟生成(本工程只需要两路)
 //
-//   PLL 实际输出 (IP Generator 取整后):
-//     clk0_out = 25.000MHz  -> clk_pix (640x480 像素时钟, 帧率约 59.5Hz)
-//     clk1_out = 125.000MHz -> clk_p5x (TMDS 串行化, DDR 后 250Mbps)
+//   clk_pix = 40.000 MHz   800x600p60 像素时钟 (VESA DMT)
+//   clk_p5x = 200.000 MHz  5x 像素时钟, TMDS 串行化用(DDR 后 400Mbps,
+//                          远低于 EG4S20 LVDS 800Mbps 上限)
 //
-//   宏开关:
-//     SIM_BEHAV  仿真用, 直接透传
-//     USE_PLL_IP 上板用, 例化 TD IP Generator 生成的 pll_ip
-//     都不定义   故意例化不存在的模块, 逼综合报错, 防止忘配宏烧板黑屏
+// ★ 上板必须用 TD(安路 Tang Dynasty) IP Generator 重新生成 PLL:
+//     Tools -> IP Generator -> PLL
+//   输入 50MHz, 输出 c0 = 40.000MHz, c1 = 200.000MHz, 两路同源。
+//
+//   40/200 全是整数分频 (VCO=800MHz: 800/20=40, 800/4=200),
+//   TD 会精确匹配, 不会再像 25.175 那样被取整 —— 这正是选 800x600 的原因。
+//
+// 仿真时 `define SIM_BEHAV, 直接透传, 功能验证够用。
 //=============================================================================
 `timescale 1ns/1ps
 module clk_gen (
@@ -24,18 +28,19 @@ module clk_gen (
     assign clk_p5x = clk_in;
     assign locked  = rst_n;
 `else
-`ifdef USE_PLL_IP
-    // TD IP Generator 生成的 PLL (C0=25MHz, C1=125MHz, reset 高有效)
-    pll_ip u_pll (
-        .refclk   (clk_in),
-        .reset    (~rst_n),
-        .extlock  (locked),
-        .clk0_out (clk_pix),
-        .clk1_out (clk_p5x)
+    //-------------------------------------------------------------
+    // TD IP Generator 生成的 PLL (C0=40MHz, C1=200MHz, reset 高有效)
+    // 端口名以实际生成的 pll_ip.v 为准, 不一致时对应修改下面几行
+    //-------------------------------------------------------------
+     pll_ip u_pll (
+         .refclk  (clk_in),
+         .clk0_out (clk_pix),      //40MHz
+         .clk1_out (clk_p5x),      //200MHz
+         .extlock   (locked),
+         .reset    (~rst_n)
     );
-`else
-    clk_gen_undefined_mode_error u_undefined_mode_error();
+
 `endif
-`endif
+
 
 endmodule

@@ -44,7 +44,11 @@ module rpg_core (
     // 怪物立绘（战斗界面，带淡入淡出）
     output wire        mon_on,
     output wire [4:0]  mon_id,
-    output wire [3:0]  mon_fade
+    output wire [3:0]  mon_fade,
+
+    // 蜂鸣器音效：id 选择音色/时长, trig 为单拍触发脉冲
+    output reg  [2:0]  sfx_id,
+    output reg         sfx_trig
 );
 
     //---------------------------------------------------------
@@ -69,30 +73,17 @@ module rpg_core (
     reg [3:0]  scene;
 
     // 动态插图：帧号 + 自动播放计时 + 暂停
+    // ★ 本工程像素时钟 = 40MHz (800x600), 计数器因此要 23 位
+    //   (5000000 > 2^22-1, 原来的 22 位装不下)
 `ifdef SIM_FAST
-    localparam [21:0] PIC_PERIOD = 22'd2_000_000;  // 仿真: 约 5 帧换一次, 一屏内不混帧
+    localparam [22:0] PIC_PERIOD = 23'd2_000_000;  // 仿真: 约 5 帧换一次, 一屏内不混帧
 `else
-    localparam [21:0] PIC_PERIOD = 22'd3_125_000;  // 25MHz / 8 = 8 帧每秒
+    localparam [22:0] PIC_PERIOD = 23'd5_000_000;  // 40MHz / 8 = 8 帧每秒
 `endif
-    reg [21:0] pic_tmr;
+    reg [22:0] pic_tmr;
     reg        pic_pause;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            pic_tmr    <= 22'd0;
-            pic_pause  <= 1'b0;
-            anim_frame <= 3'd0;
-        end else if (scene == SC_PIC && !pic_pause) begin
-            if (pic_tmr >= PIC_PERIOD) begin
-                pic_tmr    <= 22'd0;
-                anim_frame <= anim_frame + 3'd1;
-            end else begin
-                pic_tmr <= pic_tmr + 22'd1;
-            end
-        end else begin
-            pic_tmr <= 22'd0;
-        end
-    end
+    // 注意: anim_frame/pic_tmr/pic_pause 全部只在下面的主 FSM 块里驱动,
+    //       否则 HDL-8007 多驱动错误(自动播放与按键翻帧在同一块内仲裁)
 
     // 图片层只在插图页打开
     always @(posedge clk or negedge rst_n) begin
@@ -112,21 +103,20 @@ module rpg_core (
 
     reg [3:0]  mon_fade_r;
     reg [21:0] fade_tmr;
-    reg        fade_dir;        // 1=淡入 0=淡出
+    reg        fade_dir;        // 1=淡入 0=淡出 (仅主 FSM 块驱动, 避免 HDL-8007 多驱动)
 
     assign mon_on   = (scene == SC_BATTLE);
     assign mon_id   = enemy_id;
     assign mon_fade = mon_fade_r;
 
+    // 本块只负责"按 fade_dir 逐步改变透明度", 不写 fade_dir 本身
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            mon_fade_r <= 4'd0;
-            fade_tmr   <= 22'd0;
-            fade_dir   <= 1'b1;
+            mon_fade_r   <= 4'd0;
+            fade_tmr     <= 22'd0;
         end else if (scene != SC_BATTLE) begin
-            mon_fade_r <= 4'd0;
-            fade_tmr   <= 22'd0;
-            fade_dir   <= 1'b1;          // 下一场从头淡入
+            mon_fade_r   <= 4'd0;
+            fade_tmr     <= 22'd0;
         end else if (fade_tmr >= FADE_STEP) begin
             fade_tmr <= 22'd0;
             if (fade_dir && mon_fade_r < 4'd8)      mon_fade_r <= mon_fade_r + 4'd1;
@@ -226,9 +216,9 @@ module rpg_core (
     //---------------------------------------------------------
     // ROM / 表
     //---------------------------------------------------------
-    reg  [9:0]  cmd_a;
+    reg  [8:0]  cmd_a;
     wire [31:0] cmd_d;
-    reg  [10:0] str_a;
+    reg  [9:0] str_a;
     wire [15:0] str_d;
     reg  [11:0] art_a;
     wire [7:0]  art_d;
@@ -240,6 +230,7 @@ module rpg_core (
     wire [63:0] tab_es;
     wire [4:0]  ar_mob0, ar_mob1, ar_mob2, ar_mob3, ar_boss;
     wire [11:0] art_base;
+    reg  [5:0]  art_id;      // 当前 ART 精灵编号(须在 u_ab 例化前声明)
 
     cmd_rom     u_cmd  (.clk(clk), .addr(cmd_a), .data(cmd_d));
     str_rom     u_str  (.clk(clk), .addr(str_a), .data(str_d));
@@ -284,7 +275,6 @@ module rpg_core (
     reg [3:0]  bar_n, bar_t;
     reg [9:0]  bar_cur, bar_max;
     reg [3:0]  art_row, art_col;
-    reg [5:0]  art_id;
     reg [5:0]  frm_x, frm_y, frm_i;
     reg [5:0]  frm_w;
     reg [4:0]  frm_h, frm_j;
@@ -400,8 +390,8 @@ module rpg_core (
             frm_x     <= 6'd0;
             frm_y     <= 6'd0;
             ch        <= 8'd0;
-            cmd_a     <= 10'd0;
-            str_a     <= 11'd0;
+            cmd_a     <= 9'd0;
+            str_a     <= 10'd0;
             art_a     <= 12'd0;
         end else begin
             we <= 1'b0;
@@ -550,7 +540,7 @@ module rpg_core (
 
             R_TXT_C: begin
                 // sptr 越界(或字符串没有结束符)时也要收手, 否则会把整屏刷成垃圾
-                if (str_d == 16'hFFFF || sptr >= 11'd2040) begin
+                if (str_d == 16'hFFFF || sptr >= 11'd1020) begin
                     pc   <= pc + 10'd1;
                     rstt <= R_FETCH;
                 end else begin
@@ -736,8 +726,22 @@ module rpg_core (
             dly       <= 22'd0;
             redraw    <= 1'b1;
             start_battle <= 1'b0;
+            pic_tmr      <= 23'd0;
+            pic_pause    <= 1'b0;
+            anim_frame   <= 3'd0;
+            fade_dir     <= 1'b1;
+            sfx_id       <= 3'd0;
+            sfx_trig     <= 1'b0;
         end else begin
             redraw <= 1'b0;
+            sfx_trig <= 1'b0;                        // 音效触发默认清零(单拍脉冲)
+            if (scene != SC_PIC) pic_tmr <= 23'd0;   // 离开插图页就清自动播放计时
+
+            // 任意按键 -> 菜单提示音(后面的战斗音效优先级更高, 会覆盖它)
+            if (key_e != 4'd0) begin
+                sfx_id   <= 3'd1;
+                sfx_trig <= 1'b1;
+            end
 
             //---------------- 开战: 装载敌人 ----------------
             if (start_battle) begin
@@ -745,6 +749,7 @@ module rpg_core (
                 scene        <= SC_BATTLE;
                 bst          <= B_IDLE;
                 dly          <= 22'd0;
+                fade_dir     <= 1'b1;        // 新一场战斗: 立绘重新淡入
                 ehp          <= tab_es[9:0];
                 emaxhp       <= tab_es[9:0];
                 eatk         <= tab_es[17:10];
@@ -782,11 +787,15 @@ module rpg_core (
                         end
                         bst    <= B_CHECK;
                         redraw <= 1'b1;
+                        sfx_id   <= 3'd2;            // 被怪物击中: 低音
+                        sfx_trig <= 1'b1;
                     end
 
                     B_CHECK: begin
                         if (ehp == 10'd0) begin
-                            fade_dir <= 1'b0;            // 立绘淡出
+                            fade_dir <= 1'b0;            // 敌人倒下 -> 立绘淡出
+                            sfx_id   <= 3'd3;            // 击杀: 高音短促
+                            sfx_trig <= 1'b1;
                             gold     <= gold + egold;
                             exp      <= exp + eexp;
                             kills    <= (kills < 4'd15) ? (kills + 4'd1) : kills;
@@ -796,6 +805,8 @@ module rpg_core (
                         end else if (hp == 10'd0) begin
                             scene <= SC_DEAD;
                             bst   <= B_IDLE;
+                            sfx_id   <= 3'd5;            // 阵亡: 低沉长音
+                            sfx_trig <= 1'b1;
                         end else begin
                             bst   <= B_IDLE;
                         end
@@ -815,6 +826,8 @@ module rpg_core (
                             mp       <= maxmp + 10'd8;
                             msg_addr <= `MSG_LEVEL;
                             redraw   <= 1'b1;
+                            sfx_id   <= 3'd4;            // 升级: 中高音较长
+                            sfx_trig <= 1'b1;
                         end else if (mon_fade_r == 4'd0) begin
                             scene  <= SC_MAP;
                             bst    <= B_IDLE;
@@ -892,6 +905,8 @@ module rpg_core (
                             if (boss_dead) begin
                                 if (area == 3'd4) begin
                                     scene <= SC_WIN;
+                                    sfx_id   <= 3'd6;    // 通关: 高音长鸣
+                                    sfx_trig <= 1'b1;
                                 end else begin
                                     area      <= area + 3'd1;
                                     kills     <= 4'd0;
@@ -1028,6 +1043,7 @@ module rpg_core (
                         if (key_e[3]) begin              // 4: 返回标题
                             scene     <= SC_TITLE;
                             pic_pause <= 1'b0;
+                            pic_tmr   <= 23'd0;
                             redraw    <= 1'b1;
                         end else if (key_e[2]) begin     // 3: 暂停/继续
                             pic_pause <= ~pic_pause;
@@ -1037,6 +1053,15 @@ module rpg_core (
                         end else if (key_e[1]) begin     // 2: 下一帧(并暂停)
                             anim_frame <= anim_frame + 3'd1;
                             pic_pause  <= 1'b1;
+                        end else if (!pic_pause) begin   // 自动播放: 8 帧/秒
+                            if (pic_tmr >= PIC_PERIOD) begin
+                                pic_tmr    <= 23'd0;
+                                anim_frame <= anim_frame + 3'd1;
+                            end else begin
+                                pic_tmr <= pic_tmr + 23'd1;
+                            end
+                        end else begin
+                            pic_tmr <= 23'd0;            // 暂停时清计时
                         end
                     end
 

@@ -104,3 +104,95 @@ module key_debounce #(
     end
 
 endmodule
+
+
+//=============================================================================
+// buzzer —— 无源蜂鸣器音效发生器（和 key_debounce 放同一文件是刻意的：
+//   key_debounce.v 早就在 TD 工程里，这样就不用再手动 Add Source Files）
+//
+//   板上是无源蜂鸣器（9040 直插），经 MMBT3906 PNP 三极管驱动：
+//     FPGA 引脚 -> 2.21k -> 基极；发射极 3.3V；集电极 -> 蜂鸣器
+//   所以【低电平 = 蜂鸣器通电】，输出取反。
+//
+//   无源蜂鸣器没有内部振荡器，必须由外部送方波，频率决定音高
+//   （1~3kHz 最响）。本模块按 id 查表得到"半周期计数 + 半周期个数"，
+//   播放一次自动停止。
+//
+//   id 音效表（clk = 40MHz）：
+//     1  1200Hz  35ms  按键/菜单
+//     2   300Hz 120ms  被击中
+//     3  2000Hz  40ms  击杀
+//     4  1500Hz 200ms  升级
+//     5   200Hz 500ms  阵亡
+//     6  2400Hz 250ms  通关
+//     7  1000Hz 120ms  上电自检提示音
+//=============================================================================
+module buzzer (
+    input  wire       clk,
+    input  wire       rst_n,
+    input  wire [2:0] id,        // 1..7, 0 = 静音
+    input  wire       trig,      // 单拍触发脉冲
+    output wire       buzz_n     // 低有效（PNP 三极管）
+);
+
+    //---------------------------------------------------------
+    // 音效参数表
+    //---------------------------------------------------------
+    reg [16:0] half_n;      // 半个周期的时钟数
+    reg [10:0] halves_n;    // 总半周期数 (= 2 x 整周期数)
+
+    always @(*) begin
+        case (id)
+            3'd1: begin half_n = 17'd16667; halves_n = 11'd84;   end // 1.2kHz 35ms
+            3'd2: begin half_n = 17'd66667; halves_n = 11'd72;   end // 300Hz 120ms
+            3'd3: begin half_n = 17'd10000; halves_n = 11'd160;  end // 2.0kHz 40ms
+            3'd4: begin half_n = 17'd13333; halves_n = 11'd600;  end // 1.5kHz 200ms
+            3'd5: begin half_n = 17'd100000;halves_n = 11'd200;  end // 200Hz 500ms
+            3'd6: begin half_n = 17'd8333;  halves_n = 11'd1200; end // 2.4kHz 250ms
+            3'd7: begin half_n = 17'd20000; halves_n = 11'd240;  end // 1.0kHz 120ms
+            default: begin half_n = 17'd20000; halves_n = 11'd0; end
+        endcase
+    end
+
+    //---------------------------------------------------------
+    // 播放状态机
+    //---------------------------------------------------------
+    reg [16:0] half;        // 本次音效的半周期
+    reg [16:0] cnt;         // 半周期内计数
+    reg [10:0] left;        // 剩余半周期数
+    reg        pwm;
+    reg        run;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            half <= 17'd20000;
+            cnt  <= 17'd0;
+            left <= 11'd0;
+            pwm  <= 1'b0;
+            run  <= 1'b0;
+        end else if (trig && id != 3'd0) begin
+            half <= half_n;
+            cnt  <= 17'd0;
+            left <= halves_n;
+            pwm  <= 1'b1;
+            run  <= (halves_n != 11'd0);
+        end else if (run) begin
+            if (cnt + 17'd1 >= half) begin
+                cnt <= 17'd0;
+                pwm <= ~pwm;
+                if (left <= 11'd1) begin
+                    run <= 1'b0;
+                    pwm <= 1'b0;
+                end else begin
+                    left <= left - 11'd1;
+                end
+            end else begin
+                cnt <= cnt + 17'd1;
+            end
+        end
+    end
+
+    // PNP 三极管：低电平导通
+    assign buzz_n = ~pwm;
+
+endmodule

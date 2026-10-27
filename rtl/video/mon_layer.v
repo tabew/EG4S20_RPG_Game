@@ -47,14 +47,6 @@ module mon_layer (
 
     wire [7:0]  mbyte;
 
-    mon_rom u_mon (
-        .clk   (clk),
-        .addr  (maddr),
-        .data  (mbyte),
-        .paddr (pal_rd_addr),
-        .pal   (pal_q)
-    );
-
     //---------------------------------------------------------
     // 调色板：mon_id 或 fade 变了就重算 16 项
     //---------------------------------------------------------
@@ -65,8 +57,19 @@ module mon_layer (
     reg [4:0]  wcnt;      // 写入索引(pal_q 比地址晚一拍)
     reg        pload;
 
-    wire [9:0] pal_rd_addr = {mon_id, pcnt[3:0]};
+    // ★ 声明必须放在 mon_rom 例化之前: 否则 Verilog 会把 pal_rd_addr /
+    //   pal_q 隐式当成 1bit wire, 后面再显式声明就是"重复声明",
+    //   TD / iverilog 严格模式下会直接报错。
+    wire [9:0]  pal_rd_addr = {mon_id, pcnt[3:0]};
     wire [15:0] pal_q;
+
+    mon_rom u_mon (
+        .clk   (clk),
+        .addr  (maddr),
+        .data  (mbyte),
+        .paddr (pal_rd_addr),
+        .pal   (pal_q)
+    );
 
     // 把一个色项按 fade 缩放（fade=0 -> 全黑, 8 -> 原色）
     function [15:0] fade_rgb;

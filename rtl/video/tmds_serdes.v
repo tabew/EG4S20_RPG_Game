@@ -1,97 +1,80 @@
 //=============================================================================
-// tmds_serdes.v —— 10:1 串行化（5 相位 × DDR）
+// tmds_serdes.v —— 10:1 串行化器 (5x 时钟 x DDR), 每通道一个
 //
-//   480p: clk_pix = 25MHz，clk_p5x = 125MHz
-//   每像素 10bit = 5 个 clk_p5x 周期 × DDR(每周期 2bit)
+// ★ v2 改动: 装载脉冲不再由各通道自行跨时钟域检测 toggle, 而是由 hdmi_tx
+//   统一产生一个 5x 域单拍 load 脉冲(带启动校准), 四个通道共用同一脉冲
+//   → 通道间位相位天然一致。
+//   原因: 200MHz 下对 40MHz 域 toggle 的采样 setup 只剩 ~3ns, 各通道独立
+//   检测可能偶发差 1 拍, 造成该通道 10bit 字错位 2bit → 画面竖条纹 /
+//   行错位 / 颜色错乱。改成"模-5 计数器 + 上电一次校准"后, 装载时机
+//   完全确定, 且永远落在 din 稳定窗口的正中间(远离翻转沿 ≥13ns)。
 //
-// 【为什么要有 pair 这一级】
-//   ODDR 在上升沿锁 d0、下降沿锁 d1，两位必须在**整个周期内保持稳定**。
-//   如果直接把移位寄存器的 sh[0]/sh[1] 接给 ODDR，sh 会在上升沿变化，
-//   结果 d0 取到旧值、d1 取到新值 —— 每个像素的两位会错开。
-//   所以先用 pair 在上升沿锁住"本周期的两位"，再把 pair 送 ODDR，
-//   sh 同一拍右移，两者互不干扰。
+//   结构 (本模块全 5x 单时钟域, 无跨时钟域逻辑):
+//     load 拍  : tx_pdat <= {din[0],din[1],...,din[9]} (din[0] 在最高位)
+//     其余拍   : tx_pdat 每拍左移 2 位; tx_sdat 取反锁存高 2 位
+//     IO 单元  : EG_LOGIC_ODDR (d0=上升沿输出位, d1=下降沿输出位), 5x DDR
+//               → 5 拍 x 2 沿 = 10 bit / 像素
 //
-// 【上板必须定义 USE_ODDR_PRIM】
-//   不定义时用的是行为模型（仿真用）。综合出来是 LUT 搭的 DDR，
-//   125MHz 下抖动极大，症状是整屏密集竖条纹、黑底也有条纹。
-//
-// 【原语】安路 EG4 系列：EG_LOGIC_ODDR(q, clk, d0, d1, rst)
-//   见《EG4D20 FPGA 数据手册》"输出双沿驱动单元"一节。
-//   若 TD 报找不到，在安装目录搜 "ODDR" 确认名字（PH1 系列叫 PH1_LOGIC_ODDR）。
+//   ★ 必须配合 IOSTANDARD=LVDS33 的 P 端引脚约束使用, N 端由 TD 自动配对。
 //=============================================================================
 `timescale 1ns/1ps
-module tmds_serdes #(
-    parameter [2:0] PH_OFFSET = 3'd0      // 相位微调，画面规律性错位时试 0~4
-)(
-    input  wire       clk_pix,
-    input  wire       clk_p5x,
-    input  wire       rst_n,
-    input  wire [9:0] din,                // TMDS 10bit（LSB 先发）
-    output wire       dout_p,
-    output wire       dout_n
+module tmds_serdes (
+    input  wire clk_p5x,      // 5x 像素时钟
+    input  wire rst_n,
+    input  wire load,         // 5x 域装载脉冲(每像素一拍, 四通道共用)
+    input  wire [9:0] din,    // TMDS 10bit, din[0] 先发
+    output wire dout_p        // P 端输出, N 端由 TD 的 LVDS 约束自动生成
 );
 
-    //---------------------------------------------------------
-    // 5 相位计数器：clk_pix 两级同步后判上升沿，把相位对齐到像素边界
-    //---------------------------------------------------------
-    reg [1:0] pix_s;
-    wire      pix_rise = pix_s[1] & ~pix_s[0];
-    reg [2:0] ph;
-
-    always @(posedge clk_p5x or negedge rst_n) begin
-        if (!rst_n) begin
-            pix_s <= 2'b00;
-            ph    <= PH_OFFSET;
-        end else begin
-            pix_s <= {pix_s[0], clk_pix};
-            // 用 pix_rise 对齐，但不能在 ph 已经是 0 的时候再置 0 ——
-            // 那样会出现"连续两个 ph=0"，该像素多出一拍，
-            // 之后整条串行流的字边界全部错开（症状就是满屏条纹）。
-            if (pix_rise && ph != 3'd0) ph <= PH_OFFSET;
-            else if (ph == 3'd4)        ph <= 3'd0;
-            else                        ph <= ph + 3'd1;
-        end
-    end
-
-    //---------------------------------------------------------
-    // 移位队列 + 本周期两位
-    //---------------------------------------------------------
+`ifdef SIM_BEHAV
+    // 行为模型: 仅用于 RTL 仿真
     reg [9:0] sh;
-    reg [1:0] pair;
-
+    reg       ph;
+    always @(posedge clk_p5x or negedge rst_n) begin
+        if (!rst_n)      sh <= 10'h0;
+        else if (load)   sh <= din;
+        else             sh <= {2'b00, sh[9:2]};
+    end
+    always @(posedge clk_p5x or negedge rst_n) begin
+        if (!rst_n) ph <= 1'b0;
+        else        ph <= ~ph;
+    end
+    assign dout_p = ph ? sh[0] : sh[1];
+`else
+    //------------------------------------------------------------------
+    // 移位 + 输出流水 (与原版/官方源码一致)
+    //   装载: {din[0],din[1],...,din[9]} → din[0] 在最高位, LSB 先发
+    //   其余拍: 左移 2 位; tx_sdat 取反最高 2 位
+    //------------------------------------------------------------------
+    reg [9:0] tx_pdat;
+    reg [1:0] tx_sdat, tx_sdat_1d;
     always @(posedge clk_p5x or negedge rst_n) begin
         if (!rst_n) begin
-            sh   <= 10'h3FF;
-            pair <= 2'b11;
+            tx_pdat    <= 10'h0;
+            tx_sdat    <= 2'b00;
+            tx_sdat_1d <= 2'b00;
         end else begin
-            pair <= sh[1:0];                  // 本周期要发的两位
-            if (ph == 3'd0) sh <= din;        // 像素边界装载
-            else            sh <= {2'b11, sh[9:2]};
+            if (load)
+                tx_pdat <= {din[0], din[1], din[2], din[3], din[4],
+                            din[5], din[6], din[7], din[8], din[9]};
+            else
+                tx_pdat <= {tx_pdat[7:0], 2'b00};
+            tx_sdat    <= ~tx_pdat[9:8];
+            tx_sdat_1d <= tx_sdat;
         end
     end
 
-    //---------------------------------------------------------
-    // DDR 输出
-    //---------------------------------------------------------
-`ifdef USE_ODDR_PRIM
-    EG_LOGIC_ODDR u_ddr (
-        .d0  (pair[0]),       // 上升沿送出
-        .d1  (pair[1]),       // 下降沿送出
+    //------------------------------------------------------------------
+    // IO DDR 输出原语 (安路 EG4 系列)
+    //   d0 = 上升沿输出位(先发), d1 = 下降沿输出位, rst 恒 0
+    //------------------------------------------------------------------
+    EG_LOGIC_ODDR u_oddr (
+        .q   (dout_p),
         .clk (clk_p5x),
-        .rst (~rst_n),
-        .q   (dout_p)
+        .d0  (tx_sdat_1d[1]),
+        .d1  (tx_sdat_1d[0]),
+        .rst (1'b0)
     );
-    assign dout_n = ~dout_p;
-`else
-    // 行为模型：两个寄存器 + 选择器，等价于 ODDR（上升沿锁 d0、下降沿锁 d1）
-    //   注意不能用一个 reg 在两个 always 里赋值 —— 那是多驱动，仿真会打架
-    reg q_pos, q_neg;
-    always @(posedge clk_p5x or negedge rst_n)
-        if (!rst_n) q_pos <= 1'b1; else q_pos <= pair[0];
-    always @(negedge clk_p5x or negedge rst_n)
-        if (!rst_n) q_neg <= 1'b1; else q_neg <= pair[1];
-    assign dout_p = clk_p5x ? q_pos : q_neg;
-    assign dout_n = ~dout_p;
 `endif
 
 endmodule

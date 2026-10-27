@@ -16,8 +16,8 @@ module mon_rom (
     reg [7:0]  mem  [0:28799];
     reg [15:0] pmem [0:399];
 
-    initial $readmemh("rtl/gen/mon.hex", mem);
-    initial $readmemh("rtl/gen/monpal.hex", pmem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/mon.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/monpal.hex", pmem);
 
     always @(posedge clk) data <= mem[addr];
     always @(posedge clk) pal  <= pmem[paddr];

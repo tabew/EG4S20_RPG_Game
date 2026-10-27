@@ -1215,7 +1215,7 @@ module font_rom (
     output reg  [15:0] data
 );
     reg [15:0] mem [0:8191];
-    initial $readmemh("rtl/gen/font.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/font.hex", mem);
     always @(posedge clk) data <= mem[{glyph, row}];
 endmodule
 
@@ -1225,7 +1225,7 @@ module cmd_rom (
     output reg  [31:0] data
 );
     reg [31:0] mem [0:1023];
-    initial $readmemh("rtl/gen/cmd.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/cmd.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -1235,7 +1235,7 @@ module str_rom (
     output reg  [15:0] data
 );
     reg [15:0] mem [0:2047];
-    initial $readmemh("rtl/gen/str.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/str.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -1245,7 +1245,7 @@ module art_rom (
     output reg  [7:0]  data
 );
     reg [7:0] mem [0:4095];
-    initial $readmemh("rtl/gen/art.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/art.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 

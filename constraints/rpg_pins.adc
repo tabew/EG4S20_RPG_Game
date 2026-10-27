@@ -1,4 +1,7 @@
 set_pin_assignment { clk50 }       { LOCATION = R7;  IOSTANDARD = LVCMOS33; }
+
+set_pin_assignment { buzzer_n }    { LOCATION = H11; IOSTANDARD = LVCMOS33; }
+
 set_pin_assignment { rst_key_n }   { LOCATION = A14; IOSTANDARD = LVCMOS33; }
 
 set_pin_assignment { key_n[0] }    { LOCATION = E11; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }

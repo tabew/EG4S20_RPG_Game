@@ -1,20 +1,27 @@
 //=============================================================================
-// rpg_video.v —— 16x16 字符显示引擎(40 列 x 30 行 = 640x480)
+// rpg_video.v —— 16x16 字符显示引擎 + 动态插图层 + 怪物立绘层
 //
-// 每格 16bit: {bg[3:0], fg[3:0], glyph[7:0]}
+// 逻辑分辨率 640x480 (40 列 x 30 行), 输出 800x600 (MODE=3, 1.25x 缩放)。
+//
+// 每格 17bit: {bg[3:0], fg[3:0], glyph[8:0]}
 //
 // 三级直流水线(简单、不会有行边界错位):
-//   S1  按当前 (x,y) 取格子数据            cell_r  <- cell_mem[idx]
+//   S1  按当前 (xs,ys) 取格子数据          cell_r  <- cell_mem[idx]
 //   S2  用 cell_r 的字形 + 子行号查字模    gw_r    <- font_q
 //   S3  取该行第 sx 位, 配色输出
 //
-// 代价: 整幅图像右移 3 个像素(de/hs/vs 一起延迟, 显示器上看不出来)。
-// 之所以不用"提前一格预取": 行末预取下一行首格时子行号要跨行 +1,
-// 稍有不慎整屏错位 —— 实测踩过这个坑, 所以改用最不容易错的直流水线。
+// ★ 800x600 适配: vid_timing MODE=3 同时输出
+//     (x,y)   = 输出像素坐标 0..799 / 0..599
+//     (xs,ys) = 缩放回逻辑坐标 0..639 / 0..479
+//   所有"第几列第几个字符格"的运算、插图窗口、立绘窗口全部用 xs/ys,
+//   因此游戏逻辑和美术素材仍是 640x480 坐标, 只是被整体放大 1.25 倍。
+//   xs/ys 与 x/y 由同一组寄存器同步更新, 相位一致, 流水线对齐关系不变。
 //=============================================================================
 `timescale 1ns/1ps
-module rpg_video (
-    input  wire        clk,          // clk_pix = 25.175MHz
+module rpg_video #(
+    parameter integer TEST_BARS = 0   // 0=正常游戏画面; 1=纯色条测试(诊断 TMDS 链路)
+)(
+    input  wire        clk,          // clk_pix = 40MHz (800x600)
     input  wire        rst_n,
 
     // 格子写入端口(来自 rpg_core)
@@ -39,12 +46,13 @@ module rpg_video (
 );
 
     //---------------------------------------------------------
-    // 时序
+    // 时序: MODE=3 -> 800x600p60 (40MHz), 内部带 1.25x 缩放器
     //---------------------------------------------------------
-    wire [11:0] x, y;
+    wire [11:0] x, y;          // 输出像素坐标 (0..799 / 0..599)
+    wire [11:0] xs, ys;        // 缩放回逻辑坐标 (0..639 / 0..479)
     wire        hs_i, vs_i, de_i;
 
-    vid_timing #(.MODE(1)) u_tmg (      // MODE=1 -> 640x480p60
+    vid_timing #(.MODE(3)) u_tmg (
         .clk         (clk),
         .rst_n       (rst_n),
         .hs          (hs_i),
@@ -52,6 +60,8 @@ module rpg_video (
         .de          (de_i),
         .hcnt        (x),
         .vcnt        (y),
+        .src_x       (xs),
+        .src_y       (ys),
         .hs_rise     (),
         .vs_rise     (),
         .frame_start (),
@@ -66,7 +76,7 @@ module rpg_video (
     reg [16:0] cell_mem [0:1199];
     reg [16:0] cell_r;
 
-    wire [10:0] cell_idx = (y[8:4] * 40) + x[9:4];
+    wire [10:0] cell_idx = (ys[8:4] * 40) + xs[9:4];
 
     always @(posedge clk) begin
         if (we) cell_mem[waddr] <= wdata;
@@ -116,8 +126,8 @@ module rpg_video (
             vs1 <= 1'b0; vs2 <= 1'b0; vs3 <= 1'b0;
         end else begin
             // ---- S1 -> S2 ----
-            y_d1    <= y[3:0];
-            sx1     <= x[3:0];
+            y_d1    <= ys[3:0];
+            sx1     <= xs[3:0];
             cell_r2 <= cell_r;
             de1     <= de_i;
             hs1     <= hs_i;
@@ -142,7 +152,7 @@ module rpg_video (
     //---------------------------------------------------------
     // 动态插图层（4bpp 位图，2 倍放大到 256x192，居中）
     //
-    //   S0: 按 (x,y) 算源像素地址
+    //   S0: 按 (xs,ys) 算源像素地址
     //   S1: BRAM 输出字节, 选高/低半字节
     //   S2: 调色板查表
     //   S3: 与字符层对齐输出
@@ -152,17 +162,18 @@ module rpg_video (
     localparam [11:0]  AX0 = 12'd192, AY0 = 12'd144; // 居中, 256x192
 
     wire in_win0 = anim_on &&
-                   (x >= AX0) && (x < AX0 + 12'd256) &&
-                   (y >= AY0) && (y < AY0 + 12'd192);
+                   (xs >= AX0) && (xs < AX0 + 12'd256) &&
+                   (ys >= AY0) && (ys < AY0 + 12'd192);
 
-    // 注意：必须先做全宽相减再取位。用 y[7:0]-AY0[7:0] 的话，
-    // y 超过 255 会回绕，图片下半部分会重复上半部分（实测踩过）。
-    wire [11:0] ax = x - AX0;                         // 0..255
-    wire [11:0] ay = y - AY0;                         // 0..191
+    // 注意：必须先做全宽相减再取位。用 ys[7:0]-AY0[7:0] 的话，
+    // ys 超过 255 会回绕，图片下半部分会重复上半部分（实测踩过）。
+    wire [11:0] ax = xs - AX0;                        // 0..255
+    wire [11:0] ay = ys - AY0;                        // 0..191
     wire [6:0]  sx = ax[7:1];                         // /2 水平放大
     wire [6:0]  sy = ay[7:1];                         // /2 垂直放大（96 行需要 7 位!）
     wire [13:0] spix = {sy, sx};                      // sy*128 + sx, 0..12287
-    wire [16:0] anim_addr = anim_frame * FRM_BYTES + (spix >> 1);
+    wire [1:0]  afr = anim_frame[1:0];                // 4 帧 ROM, 手动翻帧也只循环 0..3
+    wire [14:0] anim_addr = afr * FRM_BYTES + (spix >> 1);   // 最大 24575, 15 位够
 
     wire [7:0]  anim_byte;
     wire [15:0] anim_rgb;
@@ -193,7 +204,7 @@ module rpg_video (
     end
 
     //---------------------------------------------------------
-    // 怪物立绘层
+    // 怪物立绘层（坐标同样用逻辑坐标 xs/ys）
     //---------------------------------------------------------
     wire        mon_win;
     wire [15:0] mon_rgb;
@@ -204,8 +215,8 @@ module rpg_video (
         .rst_n  (rst_n),
         .mon_id (mon_id),
         .fade   (mon_fade),
-        .x      (x),
-        .y      (y),
+        .x      (xs),
+        .y      (ys),
         .in_win (mon_win),
         .rgb    (mon_rgb),
         .valid  (mon_valid)
@@ -247,9 +258,21 @@ module rpg_video (
     wire [15:0] pix = (mon_on && mon_valid && cell_blank) ? mon_rgb :
                       (win3 && cell_blank)                ? anim_rgb_r : char_pix;
 
-    assign hs  = hs3;
-    assign vs  = vs3;
-    assign de  = de3;
-    assign rgb = de3 ? pix : 16'h0000;
+    //---------------------------------------------------------
+    // 诊断色条(仅 TEST_BARS=1 时): 8 条 100 像素宽, 绕过所有图层
+    //---------------------------------------------------------
+    wire [15:0] bars = (x < 12'd100) ? 16'hFFFF :
+                       (x < 12'd200) ? 16'hFFE0 :
+                       (x < 12'd300) ? 16'h07FF :
+                       (x < 12'd400) ? 16'h07E0 :
+                       (x < 12'd500) ? 16'hF81F :
+                       (x < 12'd600) ? 16'hF800 :
+                       (x < 12'd700) ? 16'h001F : 16'h0000;
+
+    assign hs  = TEST_BARS ? hs_i : hs3;
+    assign vs  = TEST_BARS ? vs_i : vs3;
+    assign de  = TEST_BARS ? de_i : de3;
+    assign rgb = TEST_BARS ? (de_i ? bars : 16'h0000)
+                           : (de3 ? pix  : 16'h0000);
 
 endmodule
