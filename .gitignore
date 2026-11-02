@@ -7,6 +7,12 @@
 sim/iverilog/frames.rgb
 sim/iverilog/*.bin
 sim/player_cells.json
+sim/sd/out/
+build/media_player/
+build/media_player_pause_fix/
+build/basic_requirements/
+tools/iverilog/
+tools/oss-cad-suite/
 
 # ── 早期的 BMP 预览（同内容已有 PNG）──
 preview/*.bmp

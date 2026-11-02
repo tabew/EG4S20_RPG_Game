@@ -44,7 +44,11 @@ module rpg_core (
     // 怪物立绘（战斗界面，带淡入淡出）
     output wire        mon_on,
     output wire [4:0]  mon_id,
-    output wire [3:0]  mon_fade
+    output wire [3:0]  mon_fade,
+
+    // 蜂鸣器音效：id 选择音色/时长(1..15, 0=静音), trig 为单拍触发脉冲
+    output reg  [3:0]  sfx_id,
+    output reg         sfx_trig
 );
 
     //---------------------------------------------------------
@@ -69,30 +73,17 @@ module rpg_core (
     reg [3:0]  scene;
 
     // 动态插图：帧号 + 自动播放计时 + 暂停
+    // ★ 本工程像素时钟 = 40MHz (800x600), 计数器因此要 23 位
+    //   (5000000 > 2^22-1, 原来的 22 位装不下)
 `ifdef SIM_FAST
-    localparam [21:0] PIC_PERIOD = 22'd2_000_000;  // 仿真: 约 5 帧换一次, 一屏内不混帧
+    localparam [22:0] PIC_PERIOD = 23'd2_000_000;  // 仿真: 约 5 帧换一次, 一屏内不混帧
 `else
-    localparam [21:0] PIC_PERIOD = 22'd3_125_000;  // 25MHz / 8 = 8 帧每秒
+    localparam [22:0] PIC_PERIOD = 23'd5_000_000;  // 40MHz / 8 = 8 帧每秒
 `endif
-    reg [21:0] pic_tmr;
+    reg [22:0] pic_tmr;
     reg        pic_pause;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            pic_tmr    <= 22'd0;
-            pic_pause  <= 1'b0;
-            anim_frame <= 3'd0;
-        end else if (scene == SC_PIC && !pic_pause) begin
-            if (pic_tmr >= PIC_PERIOD) begin
-                pic_tmr    <= 22'd0;
-                anim_frame <= anim_frame + 3'd1;
-            end else begin
-                pic_tmr <= pic_tmr + 22'd1;
-            end
-        end else begin
-            pic_tmr <= 22'd0;
-        end
-    end
+    // 注意: anim_frame/pic_tmr/pic_pause 全部只在下面的主 FSM 块里驱动,
+    //       否则 HDL-8007 多驱动错误(自动播放与按键翻帧在同一块内仲裁)
 
     // 图片层只在插图页打开
     always @(posedge clk or negedge rst_n) begin
@@ -112,21 +103,20 @@ module rpg_core (
 
     reg [3:0]  mon_fade_r;
     reg [21:0] fade_tmr;
-    reg        fade_dir;        // 1=淡入 0=淡出
+    reg        fade_dir;        // 1=淡入 0=淡出 (仅主 FSM 块驱动, 避免 HDL-8007 多驱动)
 
     assign mon_on   = (scene == SC_BATTLE);
     assign mon_id   = enemy_id;
     assign mon_fade = mon_fade_r;
 
+    // 本块只负责"按 fade_dir 逐步改变透明度", 不写 fade_dir 本身
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            mon_fade_r <= 4'd0;
-            fade_tmr   <= 22'd0;
-            fade_dir   <= 1'b1;
+            mon_fade_r   <= 4'd0;
+            fade_tmr     <= 22'd0;
         end else if (scene != SC_BATTLE) begin
-            mon_fade_r <= 4'd0;
-            fade_tmr   <= 22'd0;
-            fade_dir   <= 1'b1;          // 下一场从头淡入
+            mon_fade_r   <= 4'd0;
+            fade_tmr     <= 22'd0;
         end else if (fade_tmr >= FADE_STEP) begin
             fade_tmr <= 22'd0;
             if (fade_dir && mon_fade_r < 4'd8)      mon_fade_r <= mon_fade_r + 4'd1;
@@ -153,7 +143,9 @@ module rpg_core (
     reg [5:0]  e_spr;
 
     reg [9:0]  last_dmg;
-    reg [11:0] msg_addr;
+    reg        req_stb;
+    reg [1:0]  req_pri;
+    reg [10:0] req_addr;
     reg [15:0] rnd;
 
     reg [2:0]  bst;
@@ -226,9 +218,9 @@ module rpg_core (
     //---------------------------------------------------------
     // ROM / 表
     //---------------------------------------------------------
-    reg  [9:0]  cmd_a;
+    reg  [8:0]  cmd_a;
     wire [31:0] cmd_d;
-    reg  [10:0] str_a;
+    reg  [9:0] str_a;
     wire [15:0] str_d;
     reg  [11:0] art_a;
     wire [7:0]  art_d;
@@ -240,6 +232,7 @@ module rpg_core (
     wire [63:0] tab_es;
     wire [4:0]  ar_mob0, ar_mob1, ar_mob2, ar_mob3, ar_boss;
     wire [11:0] art_base;
+    reg  [5:0]  art_id;      // 当前 ART 精灵编号(须在 u_ab 例化前声明)
 
     cmd_rom     u_cmd  (.clk(clk), .addr(cmd_a), .data(cmd_d));
     str_rom     u_str  (.clk(clk), .addr(str_a), .data(str_d));
@@ -258,6 +251,42 @@ module rpg_core (
         .adesc    (tab_adesc),
         .es       (tab_es)
     );
+
+    // 血量低于三成，并且小怪已清/未清，和区域一起选一句。
+    wire [13:0] hp_x10 = {1'b0, hp, 3'b0} + {3'b0, hp, 1'b0};
+    wire [11:0] max_x3 = {1'b0, maxhp, 1'b0} + {2'b0, maxhp};
+    wire        hp_low = hp_x10 < {2'b0, max_x3};
+    wire        mobs_clear = (kills >= 4'd4) || boss_dead;
+    wire [1:0]  ctx_var = hp_low ? (mobs_clear ? 2'd1 : 2'd2) : 2'd0;
+    wire        boss_ready = (kills >= 4'd4) && !boss_dead;
+    wire [10:0] ctx_addr, danger_addr;
+    rpg_ctx u_ctx (
+        .area  (area),
+        .varq  (ctx_var),
+        .ctx   (ctx_addr),
+        .danger(danger_addr)
+    );
+
+    // 1 级抢占主字幕，2 级走侧栏，3 级排队。数值越小越优先。
+    localparam [1:0] PRI_L1 = 2'd1, PRI_L2 = 2'd2, PRI_L3 = 2'd3;
+`ifdef SIM_FAST
+    localparam [26:0] T_L1   = 27'd20000;
+    localparam [26:0] T_L2   = 27'd200000;
+    localparam [26:0] T_BOSS = 27'd30000;
+`else
+    localparam [26:0] T_L1   = 27'd50_000_000;   // 约 1.2~2 秒，视像素时钟而定
+    localparam [26:0] T_L2   = 27'd80_000_000;
+    localparam [26:0] T_BOSS = 27'd40_000_000;
+`endif
+    reg        banner_v, side_v, queue_v, alert_pending;
+    reg [1:0]  banner_pri;
+    reg [10:0] banner_addr, side_addr, queue_addr;
+    reg [26:0] banner_tmr, side_tmr, boss_tmr;
+    reg        boss_arm, boss_latched, map_l1_done;
+    reg [3:0]  scene_d;
+    reg [2:0]  area_d;
+    reg        hp_low_d;
+    reg [1:0]  ctx_var_d;
 
     //---------------------------------------------------------
     // 解释器
@@ -284,7 +313,6 @@ module rpg_core (
     reg [3:0]  bar_n, bar_t;
     reg [9:0]  bar_cur, bar_max;
     reg [3:0]  art_row, art_col;
-    reg [5:0]  art_id;
     reg [5:0]  frm_x, frm_y, frm_i;
     reg [5:0]  frm_w;
     reg [4:0]  frm_h, frm_j;
@@ -400,8 +428,8 @@ module rpg_core (
             frm_x     <= 6'd0;
             frm_y     <= 6'd0;
             ch        <= 8'd0;
-            cmd_a     <= 10'd0;
-            str_a     <= 11'd0;
+            cmd_a     <= 9'd0;
+            str_a     <= 10'd0;
             art_a     <= 12'd0;
         end else begin
             we <= 1'b0;
@@ -494,14 +522,47 @@ module rpg_core (
                     cnt11 <= 11'd0;
                     rstt  <= R_NAME;
                 end
-                4'd9: begin                       // MSG
-                    sptr <= msg_addr[10:0];
+                4'd9: begin                       // MSG: 商店/战斗字幕
+                    if (banner_v) begin
+                        sptr <= banner_addr;
+                        fg   <= (banner_pri == 2'd1) ? 4'd5 :
+                                (banner_pri == 2'd2) ? 4'd7 : 4'd4;
+                    end else if (scene == SC_SHOP) begin
+                        sptr <= `MSG_HINT;
+                        fg   <= 4'd1;
+                    end else if (scene == SC_SHOP2) begin
+                        sptr <= `MSG_HINT2;
+                        fg   <= 4'd1;
+                    end else begin
+                        sptr <= `MSG_NONE;
+                        fg   <= 4'd3;
+                    end
                     tx   <= cx;
                     ty   <= cy;
                     rstt <= R_TXT_A;
                 end
-                4'd11: begin                      // ADESC: 按当前区域取环境描述
-                    sptr <= tab_adesc[area*11 +: 11];
+                4'd11: begin                      // ADESC: 上下文句子，1 级时被红字盖住
+                    if (banner_v && banner_pri == 2'd1) begin
+                        sptr <= banner_addr;
+                        fg   <= 4'd5;
+                    end else begin
+                        sptr <= ctx_addr;
+                    end
+                    tx   <= cx;
+                    ty   <= cy;
+                    rstt <= R_TXT_A;
+                end
+                4'd12: begin                      // SIDE: 2 级提示，和区域句子共存
+                    if (banner_v && banner_pri == 2'd1) begin
+                        sptr <= `MSG_NONE;
+                        fg   <= 4'd3;
+                    end else if (side_v) begin
+                        sptr <= side_addr;
+                        fg   <= 4'd7;
+                    end else begin
+                        sptr <= `MSG_FAR;
+                        fg   <= 4'd3;
+                    end
                     tx   <= cx;
                     ty   <= cy;
                     rstt <= R_TXT_A;
@@ -550,7 +611,7 @@ module rpg_core (
 
             R_TXT_C: begin
                 // sptr 越界(或字符串没有结束符)时也要收手, 否则会把整屏刷成垃圾
-                if (str_d == 16'hFFFF || sptr >= 11'd2040) begin
+                if (str_d == 16'hFFFF || sptr >= 11'd1020) begin
                     pc   <= pc + 10'd1;
                     rstt <= R_FETCH;
                 end else begin
@@ -731,13 +792,34 @@ module rpg_core (
             e_boss    <= 1'b0;
             e_spr     <= 5'd0;
             last_dmg  <= 10'd0;
-            msg_addr  <= `MSG_NONE;
+            req_stb   <= 1'b0;
+            req_pri   <= 2'd0;
+            req_addr  <= `MSG_NONE;
             bst       <= B_IDLE;
             dly       <= 22'd0;
             redraw    <= 1'b1;
             start_battle <= 1'b0;
+            pic_tmr      <= 23'd0;
+            pic_pause    <= 1'b0;
+            anim_frame   <= 3'd0;
+            fade_dir     <= 1'b1;
+            sfx_id       <= 4'd0;
+            sfx_trig     <= 1'b0;
         end else begin
-            redraw <= 1'b0;
+            // Keep requests made during a render pending until R_IDLE accepts them.
+            if (rstt == R_IDLE)
+                redraw <= 1'b0;
+            req_stb <= 1'b0;
+            sfx_trig <= 1'b0;                        // 音效触发默认清零(单拍脉冲)
+            if (alert_pending && !rendering)
+                redraw <= 1'b1;
+            if (scene != SC_PIC) pic_tmr <= 23'd0;   // 离开插图页就清自动播放计时
+
+            // 任意按键 -> 菜单提示音(后面的战斗音效优先级更高, 会覆盖它)
+            if (key_e != 4'd0) begin
+                sfx_id   <= 4'd1;
+                sfx_trig <= 1'b1;
+            end
 
             //---------------- 开战: 装载敌人 ----------------
             if (start_battle) begin
@@ -745,6 +827,7 @@ module rpg_core (
                 scene        <= SC_BATTLE;
                 bst          <= B_IDLE;
                 dly          <= 22'd0;
+                fade_dir     <= 1'b1;        // 新一场战斗: 立绘重新淡入
                 ehp          <= tab_es[9:0];
                 emaxhp       <= tab_es[9:0];
                 eatk         <= tab_es[17:10];
@@ -753,7 +836,9 @@ module rpg_core (
                 egold        <= tab_es[47:36];
                 e_spr        <= tab_es[52:48];
                 e_boss       <= tab_es[53];
-                msg_addr     <= `MSG_HIT;
+                req_stb      <= 1'b1;
+                req_pri      <= tab_es[53] ? PRI_L1 : PRI_L2;
+                req_addr     <= tab_es[53] ? `MSG_BOSS : `MSG_MEET;
                 last_dmg     <= 10'd0;
                 redraw       <= 1'b1;
             end
@@ -778,24 +863,34 @@ module rpg_core (
                         if (ehp != 10'd0) begin
                             last_dmg <= e_dmg;
                             hp       <= (hp > e_dmg) ? (hp - e_dmg) : 10'd0;
-                            msg_addr <= `MSG_ENEMY;
+                            req_stb  <= 1'b1;
+                            req_pri  <= PRI_L2;
+                            req_addr <= `MSG_ENEMY;
                         end
                         bst    <= B_CHECK;
                         redraw <= 1'b1;
+                        sfx_id   <= 4'd2;            // 被怪物击中: 低音
+                        sfx_trig <= 1'b1;
                     end
 
                     B_CHECK: begin
                         if (ehp == 10'd0) begin
-                            fade_dir <= 1'b0;            // 立绘淡出
+                            fade_dir <= 1'b0;            // 敌人倒下 -> 立绘淡出
+                            sfx_id   <= 4'd3;            // 击杀: 高音短促
+                            sfx_trig <= 1'b1;
                             gold     <= gold + egold;
                             exp      <= exp + eexp;
                             kills    <= (kills < 4'd15) ? (kills + 4'd1) : kills;
                             if (e_boss) boss_dead <= 1'b1;
-                            msg_addr <= `MSG_KILL;
+                            req_stb  <= 1'b1;
+                            req_pri  <= PRI_L2;
+                            req_addr <= `MSG_KILL;
                             bst      <= B_LVUP;
                         end else if (hp == 10'd0) begin
                             scene <= SC_DEAD;
                             bst   <= B_IDLE;
+                            sfx_id   <= 4'd5;            // 阵亡: 低沉长音
+                            sfx_trig <= 1'b1;
                         end else begin
                             bst   <= B_IDLE;
                         end
@@ -813,8 +908,12 @@ module rpg_core (
                             def      <= def + 8'd2;
                             hp       <= maxhp + 10'd26;
                             mp       <= maxmp + 10'd8;
-                            msg_addr <= `MSG_LEVEL;
+                            req_stb  <= 1'b1;
+                            req_pri  <= PRI_L2;
+                            req_addr <= `MSG_LEVEL;
                             redraw   <= 1'b1;
+                            sfx_id   <= 4'd4;            // 升级: 中高音较长
+                            sfx_trig <= 1'b1;
                         end else if (mon_fade_r == 4'd0) begin
                             scene  <= SC_MAP;
                             bst    <= B_IDLE;
@@ -886,20 +985,34 @@ module rpg_core (
                                 gold <= gold - 12'd10;
                                 hp   <= (rest_new > {4'd0, maxhp}) ? maxhp : rest_new[9:0];
                                 mp   <= (mp + (maxmp >> 1) > maxmp) ? maxmp : mp + (maxmp >> 1);
+                                sfx_id   <= 4'd8;            // 旅店休息回血
+                                sfx_trig <= 1'b1;
+                            end else begin
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_NOGOLD;
+                                sfx_id   <= 4'd10;           // 金币不足
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[3]) begin
                             if (boss_dead) begin
                                 if (area == 3'd4) begin
                                     scene <= SC_WIN;
+                                    sfx_id   <= 4'd6;    // 通关: 高音长鸣
+                                    sfx_trig <= 1'b1;
                                 end else begin
                                     area      <= area + 3'd1;
                                     kills     <= 4'd0;
                                     boss_dead <= 1'b0;
+                                    sfx_id    <= 4'd11;  // 进入下一区域: 翻页音
+                                    sfx_trig  <= 1'b1;
                                 end
                             end else if (kills >= 4'd4) begin
                                 enemy_id     <= ar_boss;
                                 start_battle <= 1'b1;
+                                sfx_id       <= 4'd12;   // BOSS 出场: 低沉长鸣
+                                sfx_trig     <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end
@@ -909,48 +1022,84 @@ module rpg_core (
                         if (key_e[0]) begin
                             last_dmg <= p_dmg;
                             ehp      <= (ehp > p_dmg) ? (ehp - p_dmg) : 10'd0;
-                            msg_addr <= `MSG_HIT;
+                            req_stb  <= 1'b1;
+                            req_pri  <= PRI_L2;
+                            req_addr <= `MSG_HIT;
                             bst      <= B_DELAY;
+                            sfx_id   <= 4'd11;           // 挥击: 短促高频
+                            sfx_trig <= 1'b1;
                             redraw   <= 1'b1;
                         end else if (key_e[1]) begin
                             if ({2'b00, mp} >= {2'b00, sk_cost}) begin
                                 mp       <= mp - {2'b00, sk_cost};
                                 last_dmg <= sk_dmg;
                                 ehp      <= (ehp > sk_dmg) ? (ehp - sk_dmg) : 10'd0;
-                                msg_addr <= `MSG_SKILL;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_SKILL;
                                 bst      <= B_DELAY;
+                                sfx_id   <= 4'd13;       // 释放技能: 高音
+                                sfx_trig <= 1'b1;
                             end else begin
-                                msg_addr <= `MSG_NOMANA;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_NOMANA;
+                                sfx_id   <= 4'd14;       // 蓝不够: 失败音
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[2]) begin
                             if (potxl != 4'd0) begin
                                 potxl    <= potxl - 4'd1;
                                 hp       <= (hp + 10'd130 > maxhp) ? maxhp : (hp + 10'd130);
-                                msg_addr <= `MSG_POTION;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_POTION;
                                 bst      <= B_DELAY;
+                                sfx_id   <= 4'd8;        // 用药回血
+                                sfx_trig <= 1'b1;
                             end else if (pot != 4'd0) begin
                                 pot      <= pot - 4'd1;
                                 hp       <= (hp + 10'd60 > maxhp) ? maxhp : (hp + 10'd60);
-                                msg_addr <= `MSG_POTION;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_POTION;
                                 bst      <= B_DELAY;
+                                sfx_id   <= 4'd8;
+                                sfx_trig <= 1'b1;
                             end else if (herb != 4'd0) begin
                                 herb     <= herb - 4'd1;
                                 hp       <= (hp + 10'd30 > maxhp) ? maxhp : (hp + 10'd30);
-                                msg_addr <= `MSG_POTION;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_POTION;
                                 bst      <= B_DELAY;
+                                sfx_id   <= 4'd8;
+                                sfx_trig <= 1'b1;
                             end else begin
-                                msg_addr <= `MSG_NOPOT;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_NOPOT;
+                                sfx_id   <= 4'd14;       // 没有药: 失败音
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[3]) begin
                             if (rnd[3:0] < 4'd10) begin
-                                msg_addr <= `MSG_FLEE;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_FLEE;
                                 scene    <= SC_MAP;
                                 bst      <= B_IDLE;
+                                sfx_id   <= 4'd15;       // 逃跑成功: 清脆短音
+                                sfx_trig <= 1'b1;
                             end else begin
-                                msg_addr <= `MSG_FAIL;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L2;
+                                req_addr <= `MSG_FAIL;
                                 bst      <= B_DELAY;
+                                sfx_id   <= 4'd14;       // 逃跑失败: 低音
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end
@@ -961,25 +1110,57 @@ module rpg_core (
                             if (gold >= 12'd15) begin
                                 gold <= gold - 12'd15;
                                 herb <= herb + 4'd1;
-                                msg_addr <= `MSG_BUY;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_BUY;
+                                sfx_id   <= 4'd9;        // 购买成功
+                                sfx_trig <= 1'b1;
+                            end else begin
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_NOGOLD;
+                                sfx_id   <= 4'd10;       // 金币不足
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[1]) begin
                             if (gold >= 12'd30) begin
                                 gold <= gold - 12'd30;
                                 pot  <= pot + 4'd1;
-                                msg_addr <= `MSG_BUY;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_BUY;
+                                sfx_id   <= 4'd9;
+                                sfx_trig <= 1'b1;
+                            end else begin
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_NOGOLD;
+                                sfx_id   <= 4'd10;
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[2]) begin
                             if (gold >= 12'd60) begin
                                 gold  <= gold - 12'd60;
                                 potxl <= potxl + 4'd1;
-                                msg_addr <= `MSG_BUY;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_BUY;
+                                sfx_id   <= 4'd9;
+                                sfx_trig <= 1'b1;
+                            end else begin
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_NOGOLD;
+                                sfx_id   <= 4'd10;
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[3]) begin
                             scene  <= SC_SHOP2;      // 翻到装备页
+                            sfx_id   <= 4'd11;           // 翻页音
+                            sfx_trig <= 1'b1;
                             redraw <= 1'b1;
                         end
                     end
@@ -989,14 +1170,34 @@ module rpg_core (
                             if (gold >= 12'd120) begin
                                 gold <= gold - 12'd120;
                                 atk  <= atk + 8'd3;
-                                msg_addr <= `MSG_UPGRADE;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_UPGRADE;
+                                sfx_id   <= 4'd9;        // 强化成功
+                                sfx_trig <= 1'b1;
+                            end else begin
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_NOGOLD;
+                                sfx_id   <= 4'd10;
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[1]) begin
                             if (gold >= 12'd120) begin
                                 gold <= gold - 12'd120;
                                 def  <= def + 8'd3;
-                                msg_addr <= `MSG_UPGRADE;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_UPGRADE;
+                                sfx_id   <= 4'd9;
+                                sfx_trig <= 1'b1;
+                            end else begin
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_NOGOLD;
+                                sfx_id   <= 4'd10;
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[2]) begin
@@ -1004,11 +1205,23 @@ module rpg_core (
                                 gold <= gold - 12'd200;
                                 atk  <= atk + 8'd3;
                                 def  <= def + 8'd3;
-                                msg_addr <= `MSG_UPGRADE;
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_UPGRADE;
+                                sfx_id   <= 4'd9;
+                                sfx_trig <= 1'b1;
+                            end else begin
+                                req_stb  <= 1'b1;
+                                req_pri  <= PRI_L3;
+                                req_addr <= `MSG_NOGOLD;
+                                sfx_id   <= 4'd10;
+                                sfx_trig <= 1'b1;
                             end
                             redraw <= 1'b1;
                         end else if (key_e[3]) begin
                             scene  <= SC_MAP;
+                            sfx_id   <= 4'd11;           // 返回: 翻页音
+                            sfx_trig <= 1'b1;
                             redraw <= 1'b1;
                         end
                     end
@@ -1020,6 +1233,8 @@ module rpg_core (
                             gold   <= gold - gold_lost[11:0];
                             kills  <= 4'd0;
                             scene  <= SC_MAP;
+                            sfx_id   <= 4'd8;            // 复活: 回血音
+                            sfx_trig <= 1'b1;
                             redraw <= 1'b1;
                         end
                     end
@@ -1028,15 +1243,29 @@ module rpg_core (
                         if (key_e[3]) begin              // 4: 返回标题
                             scene     <= SC_TITLE;
                             pic_pause <= 1'b0;
+                            pic_tmr   <= 23'd0;
                             redraw    <= 1'b1;
                         end else if (key_e[2]) begin     // 3: 暂停/继续
                             pic_pause <= ~pic_pause;
                         end else if (key_e[0]) begin     // 1: 上一帧(并暂停)
                             anim_frame <= anim_frame - 3'd1;
                             pic_pause  <= 1'b1;
+                            sfx_id   <= 4'd11;           // 翻帧音
+                            sfx_trig <= 1'b1;
                         end else if (key_e[1]) begin     // 2: 下一帧(并暂停)
                             anim_frame <= anim_frame + 3'd1;
                             pic_pause  <= 1'b1;
+                            sfx_id   <= 4'd11;
+                            sfx_trig <= 1'b1;
+                        end else if (!pic_pause) begin   // 自动播放: 8 帧/秒
+                            if (pic_tmr >= PIC_PERIOD) begin
+                                pic_tmr    <= 23'd0;
+                                anim_frame <= anim_frame + 3'd1;
+                            end else begin
+                                pic_tmr <= pic_tmr + 23'd1;
+                            end
+                        end else begin
+                            pic_tmr <= 23'd0;            // 暂停时清计时
                         end
                     end
 
@@ -1051,6 +1280,240 @@ module rpg_core (
                     endcase
                 end
             end
+        end
+    end
+
+    //=========================================================
+    // 消息优先级
+    //   1 级抢占主字幕，把正在看的 3 级公告放进队列，超时后再弹回来
+    //   2 级战斗字写在主行；地图上写在下一行，不盖住区域句子
+    //   3 级商店公告。主行空着就直接显示，并一直留到被更高优先级打断或离开界面
+    //=========================================================
+    reg        banner_v_n, side_v_n, queue_v_n, alert_n;
+    reg        boss_arm_n, boss_latched_n, map_l1_n;
+    reg [1:0]  banner_pri_n;
+    reg [10:0] banner_addr_n, side_addr_n, queue_addr_n;
+    reg [26:0] banner_tmr_n, side_tmr_n, boss_tmr_n;
+    wire       scene_changed = (scene != scene_d);
+    wire       area_changed  = (area != area_d);
+    wire       shop_now = (scene == SC_SHOP) || (scene == SC_SHOP2);
+
+    always @(*) begin
+        banner_v_n     = banner_v;
+        banner_pri_n   = banner_pri;
+        banner_addr_n  = banner_addr;
+        banner_tmr_n   = banner_tmr;
+        side_v_n       = side_v;
+        side_addr_n    = side_addr;
+        side_tmr_n     = side_tmr;
+        queue_v_n      = queue_v;
+        queue_addr_n   = queue_addr;
+        boss_arm_n     = boss_arm;
+        boss_tmr_n     = boss_tmr;
+        boss_latched_n = boss_latched;
+        map_l1_n       = map_l1_done;
+        alert_n        = alert_pending;
+
+        if (alert_pending && !rendering)
+            alert_n = 1'b0;
+        if (!hp_low)
+            map_l1_n = 1'b0;
+        if (boss_dead || area_changed)
+            boss_latched_n = 1'b0;
+
+        if (scene_changed) begin
+            banner_v_n    = 1'b0;
+            banner_pri_n  = 2'd0;
+            banner_tmr_n  = 27'd0;
+            side_v_n      = 1'b0;
+            side_tmr_n    = 27'd0;
+            queue_v_n     = 1'b0;
+            boss_arm_n    = 1'b0;
+            boss_tmr_n    = 27'd0;
+        end
+
+        if (banner_v_n && (banner_pri_n == PRI_L1 || banner_pri_n == PRI_L2)) begin
+            if (banner_tmr_n != 27'd0)
+                banner_tmr_n = banner_tmr_n - 27'd1;
+            else begin
+                alert_n = 1'b1;
+                if (queue_v_n) begin
+                    banner_v_n    = 1'b1;
+                    banner_pri_n  = PRI_L3;
+                    banner_addr_n = queue_addr_n;
+                    banner_tmr_n  = 27'd0;
+                    queue_v_n     = 1'b0;
+                end else begin
+                    banner_v_n   = 1'b0;
+                    banner_pri_n = 2'd0;
+                end
+            end
+        end
+
+        if (side_v_n) begin
+            if (side_tmr_n != 27'd0)
+                side_tmr_n = side_tmr_n - 27'd1;
+            else begin
+                side_v_n = 1'b0;
+                alert_n  = 1'b1;
+            end
+        end
+
+        if (boss_arm_n) begin
+            if (boss_tmr_n != 27'd0)
+                boss_tmr_n = boss_tmr_n - 27'd1;
+            else begin
+                boss_arm_n     = 1'b0;
+                boss_latched_n = 1'b1;
+                if (banner_v_n && banner_pri_n == PRI_L3) begin
+                    queue_v_n    = 1'b1;
+                    queue_addr_n = banner_addr_n;
+                end
+                banner_v_n    = 1'b1;
+                banner_pri_n  = PRI_L1;
+                banner_addr_n = `MSG_BOSS;
+                banner_tmr_n  = T_L1;
+                alert_n       = 1'b1;
+            end
+        end
+
+        if (scene == SC_MAP && (scene_changed || area_changed)) begin
+            if (area >= 3'd2 && danger_addr != 11'd0) begin
+                side_v_n    = 1'b1;
+                side_addr_n = danger_addr;
+                side_tmr_n  = T_L2;
+            end else begin
+                side_v_n   = 1'b0;
+                side_tmr_n = 27'd0;
+            end
+            if (!scene_changed)
+                alert_n = 1'b1;
+        end
+
+        if (req_stb) begin
+            if (req_pri == PRI_L1) begin
+                if (banner_v_n && banner_pri_n == PRI_L3) begin
+                    queue_v_n    = 1'b1;
+                    queue_addr_n = banner_addr_n;
+                end
+                banner_v_n    = 1'b1;
+                banner_pri_n  = PRI_L1;
+                banner_addr_n = req_addr;
+                banner_tmr_n  = T_L1;
+            end else if (req_pri == PRI_L2) begin
+                if (scene == SC_BATTLE) begin
+                    if (!(banner_v_n && banner_pri_n == PRI_L1)) begin
+                        banner_v_n    = 1'b1;
+                        banner_pri_n  = PRI_L2;
+                        banner_addr_n = req_addr;
+                        banner_tmr_n  = T_L2;
+                    end
+                end else begin
+                    side_v_n    = 1'b1;
+                    side_addr_n = req_addr;
+                    side_tmr_n  = T_L2;
+                end
+            end else if (req_pri == PRI_L3) begin
+                if (banner_v_n && banner_pri_n == PRI_L1) begin
+                    queue_v_n    = 1'b1;
+                    queue_addr_n = req_addr;
+                end else begin
+                    banner_v_n    = 1'b1;
+                    banner_pri_n  = PRI_L3;
+                    banner_addr_n = req_addr;
+                    banner_tmr_n  = 27'd0;
+                end
+                if (shop_now && boss_ready && !boss_latched_n && !boss_arm_n) begin
+                    boss_arm_n = 1'b1;
+                    boss_tmr_n = T_BOSS;
+                end
+            end
+        end
+
+        if (scene == SC_MAP && scene_changed && hp_low && !map_l1_n) begin
+            if (banner_v_n && banner_pri_n == PRI_L3) begin
+                queue_v_n    = 1'b1;
+                queue_addr_n = banner_addr_n;
+            end
+            banner_v_n    = 1'b1;
+            banner_pri_n  = PRI_L1;
+            banner_addr_n = `MSG_DYING;
+            banner_tmr_n  = T_L1;
+            map_l1_n      = 1'b1;
+        end
+
+        if (scene == SC_MAP && ctx_var != ctx_var_d)
+            alert_n = 1'b1;
+
+        if (hp_low && !hp_low_d) begin
+            if (banner_v_n && banner_pri_n == PRI_L3) begin
+                queue_v_n    = 1'b1;
+                queue_addr_n = banner_addr_n;
+            end
+            banner_v_n    = 1'b1;
+            banner_pri_n  = PRI_L1;
+            banner_addr_n = `MSG_DYING;
+            banner_tmr_n  = T_L1;
+            map_l1_n      = 1'b1;
+            alert_n       = 1'b1;
+        end
+
+        // Healing invalidates only the low-health warning, not a boss warning.
+        if (!hp_low && banner_v_n && banner_pri_n == PRI_L1 &&
+            banner_addr_n == `MSG_DYING) begin
+            banner_tmr_n = 27'd0;
+            alert_n = 1'b1;
+            if (queue_v_n) begin
+                banner_v_n = 1'b1;
+                banner_pri_n = PRI_L3;
+                banner_addr_n = queue_addr_n;
+                queue_v_n = 1'b0;
+            end else begin
+                banner_v_n = 1'b0;
+                banner_pri_n = 2'd0;
+            end
+        end
+    end
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            banner_v      <= 1'b0;
+            banner_pri    <= 2'd0;
+            banner_addr   <= `MSG_NONE;
+            banner_tmr    <= 27'd0;
+            side_v        <= 1'b0;
+            side_addr     <= `MSG_FAR;
+            side_tmr      <= 27'd0;
+            queue_v       <= 1'b0;
+            queue_addr    <= `MSG_NONE;
+            boss_arm      <= 1'b0;
+            boss_tmr      <= 27'd0;
+            boss_latched  <= 1'b0;
+            map_l1_done   <= 1'b0;
+            alert_pending <= 1'b0;
+            scene_d       <= SC_TITLE;
+            area_d        <= 3'd0;
+            hp_low_d      <= 1'b0;
+            ctx_var_d     <= 2'd0;
+        end else begin
+            banner_v      <= banner_v_n;
+            banner_pri    <= banner_pri_n;
+            banner_addr   <= banner_addr_n;
+            banner_tmr    <= banner_tmr_n;
+            side_v        <= side_v_n;
+            side_addr     <= side_addr_n;
+            side_tmr      <= side_tmr_n;
+            queue_v       <= queue_v_n;
+            queue_addr    <= queue_addr_n;
+            boss_arm      <= boss_arm_n;
+            boss_tmr      <= boss_tmr_n;
+            boss_latched  <= boss_latched_n;
+            map_l1_done   <= map_l1_n;
+            alert_pending <= alert_n;
+            scene_d       <= scene;
+            area_d        <= area;
+            hp_low_d      <= hp_low;
+            ctx_var_d     <= ctx_var;
         end
     end
 

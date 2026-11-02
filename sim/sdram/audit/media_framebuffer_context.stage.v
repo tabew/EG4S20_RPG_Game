@@ -1,0 +1,307 @@
+`timescale 1ns/1ps
+// MEDIA_FRAMEBUFFER_BEGIN
+`timescale 1ns/1ps
+// Full 640x480 RGB888 framebuffer. SDRAM holds one zero-padded RGB per word.
+// Bank addresses: {1'b0, bank, pixel[18:0]}; no reduced-resolution cache.
+// frame_begin/end/abort and pixel writes are synchronous to sclk. frame_done
+// acknowledges either abort completion or the pclk acknowledgement of a swap.
+// A successful source must deliver exactly 307200 in-range pixels. The producer
+// may send ascending pixels within descending BMP rows. It must honor ready;
+// any valid without ready aborts that back frame and preserves the front.
+// Reset both domains together. Independent resets require a fresh frame_begin.
+module media_framebuffer (
+    input wire sclk, input wire phy_clk, input wire srst_n, input wire pclk, input wire prst_n,
+    input wire frame_begin, input wire pixel_wr_valid,
+    input wire [18:0] pixel_wr_addr, input wire [23:0] pixel_wr_data,
+    output wire pixel_wr_ready, input wire frame_end, input wire frame_abort,
+    output wire s_ready, output reg frame_done, output reg frame_ok,
+    output wire s_front_valid, output wire busy, output reg [3:0] error_flags,
+    input wire frame_tick, input wire pixel_req,
+    output wire [23:0] pixel_rgb, output reg pixel_valid,
+    output wire front_valid, output reg underrun
+);
+    localparam [3:0] IDLE=0, BUILD_FETCH=1, BUILD_HAVE=2, CMD_WRITE=3,
+        WRITE_FETCH=4, WRITE_SEND=5, WRITE_WAIT=6, CMD_READ=7,
+        READ_WAIT=8, READ_RECOVER=9;
+    localparam [1:0] E_RUN=0, E_WAIT=1, E_CLEAR=2, E_RETURN=3;
+    reg [3:0] state;
+    reg [1:0] epoch_state;
+    reg [2:0] clear_count;
+    reg loading, end_pending, abort_pending, commit_pending;
+    reg front_bank, front_live, swap_waiting;
+    reg [18:0] source_count, fetch_addr;
+    reg [42:0] source_mem [0:127];
+    reg [6:0] source_wptr, source_rptr;
+    reg [7:0] source_used;
+    reg [42:0] source_head;
+    reg [23:0] burst_mem [0:15];
+    reg [23:0] burst_data;
+    reg [18:0] burst_addr;
+    reg [4:0] burst_count;
+    reg [3:0] burst_index;
+    wire head_matches = burst_count==0 || source_head[42:24]==burst_addr+burst_count;
+    wire source_push = pixel_wr_valid && pixel_wr_ready;
+    wire source_pop = state==BUILD_HAVE && head_matches && !abort_pending && !frame_abort;
+    assign pixel_wr_ready = s_ready && loading && !end_pending &&
+        !abort_pending && !frame_abort && source_used<128;
+    assign busy = loading || !s_ready;
+    assign s_front_valid = front_live;
+
+    reg p_epoch, p_return, p_wait, p_gate, p_front, p_bad, p_show;
+    (* async_reg = "true" *) reg epoch_meta, epoch_sync;
+    (* async_reg = "true" *) reg return_meta, return_sync;
+    reg epoch_seen, s_ack;
+    (* async_reg = "true" *) reg ack_meta, ack_sync;
+    (* async_reg = "true" *) reg front_meta, front_sync;
+    wire epoch_changed = epoch_sync != epoch_seen;
+    wire epoch_readable = (epoch_state==E_RUN || epoch_state==E_RETURN) && !epoch_changed;
+
+    wire cmd_ready, ctrl_busy, ctrl_wr_ready, ctrl_wr_done;
+    wire ctrl_rd_valid, ctrl_rd_last;
+    wire [31:0] ctrl_rd_data;
+    wire cmd_valid = (state==CMD_WRITE || state==CMD_READ) &&
+        epoch_state!=E_CLEAR;
+    wire cmd_write = state==CMD_WRITE;
+    wire [20:0] cmd_addr = cmd_write ? {1'b0, !front_bank, burst_addr} :
+                                                    {1'b0, front_bank, fetch_addr};
+    wire [7:0] cmd_len = cmd_write ? {3'd0,burst_count} : 8'd128;
+    media_sdram_ctrl controller (
+        .clk(sclk), .phy_clk(phy_clk), .rst_n(srst_n), .init_done(s_ready),
+        .cmd_valid(cmd_valid), .cmd_ready(cmd_ready), .cmd_write(cmd_write),
+        .cmd_addr(cmd_addr), .cmd_len(cmd_len),
+        .wr_valid(state==WRITE_SEND), .wr_ready(ctrl_wr_ready),
+        .wr_data({8'd0,burst_data}), .wr_strb(4'b1111), .wr_done(ctrl_wr_done),
+        .rd_valid(ctrl_rd_valid), .rd_data(ctrl_rd_data), .rd_last(ctrl_rd_last),
+        .busy(ctrl_busy)
+    );
+
+    wire video_full, video_empty, video_rvalid;
+    wire [11:0] video_used;
+    wire [23:0] video_data;
+    wire video_write = ctrl_rd_valid && state==READ_WAIT && epoch_readable;
+    wire video_read = pixel_req && p_gate && p_front && !p_wait && !frame_tick && !video_empty;
+    media_async_fifo #(.WIDTH(24), .ADDR_BITS(11)) video_fifo (
+        .wclk(sclk), .wrst_n(srst_n), .wclear(epoch_state==E_CLEAR),
+        .w_en(video_write), .w_data(ctrl_rd_data[23:0]),
+        .w_full(video_full), .w_level(video_used),
+        .rclk(pclk), .rrst_n(prst_n), .rclear(p_wait),
+        .r_en(video_read), .r_data(video_data), .r_valid(video_rvalid),
+        .r_empty(video_empty)
+    );
+    assign pixel_rgb = p_show && video_rvalid ? video_data : 24'd0;
+    assign front_valid = p_front;
+
+    // Gray-pointer FIFO read is synchronous: request S2 -> registered data S3.
+    // On underrun, consume any subsequently available pixels but hide the rest
+    // of this frame. The next blank epoch discards all residual FIFO contents.
+    always @(posedge pclk or negedge prst_n) begin
+        if (!prst_n) begin
+            p_epoch<=0; p_return<=0; p_wait<=0; p_gate<=0;
+            p_front<=0; p_bad<=0; p_show<=0; pixel_valid<=0; underrun<=0;
+            ack_meta<=0; ack_sync<=0; front_meta<=0; front_sync<=0;
+        end else begin
+            ack_meta<=s_ack; ack_sync<=ack_meta;
+            front_meta<=front_live; front_sync<=front_meta;
+            p_show<=video_read && !p_bad;
+            pixel_valid<=video_read && !p_bad;
+            if (frame_tick) begin
+                p_epoch<=!p_epoch; p_wait<=1; p_gate<=0;
+                p_bad<=0; underrun<=0; p_show<=0; pixel_valid<=0;
+            end else if (p_wait && ack_sync==p_epoch) begin
+                p_wait<=0; p_gate<=1; p_front<=front_sync; p_return<=ack_sync;
+            end else if (pixel_req && p_gate && p_front && !p_wait && video_empty) begin
+                p_bad<=1; underrun<=1; p_show<=0; pixel_valid<=0;
+            end
+        end
+    end
+
+    // Read registers have no reset, allowing inference of embedded RAM ports.
+    // Their consumers run only after the corresponding synchronous fetch.
+    always @(posedge sclk) begin
+        if (state==BUILD_FETCH && source_used!=0) source_head<=source_mem[source_rptr];
+        if (state==WRITE_FETCH) burst_data<=burst_mem[burst_index];
+    end
+
+    // RAM reads stay in clocked statements; no combinational multi-entry scan.
+    // Gather at most16 consecutive addresses before issuing a write command.
+    // The controller owns a second payload buffer and accepts producer gaps.
+    always @(posedge sclk or negedge srst_n) begin
+        if (!srst_n) begin
+            state<=IDLE; epoch_state<=E_RUN; clear_count<=0;
+            loading<=0; end_pending<=0; abort_pending<=0; commit_pending<=0;
+            front_bank<=0; front_live<=0; swap_waiting<=0;
+            source_count<=0; fetch_addr<=0; source_wptr<=0; source_rptr<=0;
+            source_used<=0;
+            burst_addr<=0; burst_count<=0; burst_index<=0;
+            epoch_meta<=0; epoch_sync<=0; return_meta<=0; return_sync<=0;
+            epoch_seen<=0; s_ack<=0;
+            frame_done<=0; frame_ok<=0; error_flags<=0;
+        end else begin
+            epoch_meta<=p_epoch; epoch_sync<=epoch_meta;
+            return_meta<=p_return; return_sync<=return_meta;
+            frame_done<=0;
+            if (source_push) begin
+                source_mem[source_wptr]<={pixel_wr_addr,pixel_wr_data};
+                source_wptr<=source_wptr+1'b1;
+                source_count<=source_count+1'b1;
+                if (pixel_wr_addr>=307200 || source_count>=307200) begin
+                    error_flags[1]<=1; abort_pending<=1;
+                end
+            end
+            if (source_pop) source_rptr<=source_rptr+1'b1;
+            case ({source_push,source_pop})
+                2'b10: source_used<=source_used+1'b1;
+                2'b01: source_used<=source_used-1'b1;
+                default: begin end
+            endcase
+            if (frame_begin) begin
+                if (!loading && s_ready) begin
+                    loading<=1; end_pending<=0; abort_pending<=0; commit_pending<=0;
+                    source_count<=0; error_flags<=0;
+                end else begin error_flags[0]<=1; if (loading) abort_pending<=1; end
+            end
+            if (pixel_wr_valid && !pixel_wr_ready && loading) begin
+                error_flags[0]<=1; abort_pending<=1;
+            end
+            if (frame_end && loading) end_pending<=1;
+            if (frame_abort && loading) begin error_flags[2]<=1; abort_pending<=1; end
+            if (video_write && video_full) error_flags[3]<=1;
+
+            // An epoch invalidates in-flight read results immediately. Its bus
+            // command still finishes normally before either FIFO pointer clears.
+            if (epoch_changed && epoch_state==E_RUN) begin
+                epoch_seen<=epoch_sync; epoch_state<=E_WAIT;
+            end
+            if (epoch_state==E_WAIT && state==IDLE && !ctrl_busy) begin
+                epoch_state<=E_CLEAR; clear_count<=0; fetch_addr<=0;
+                if (commit_pending && !abort_pending && !frame_abort) begin
+                    front_bank<=!front_bank; front_live<=1;
+                    commit_pending<=0; swap_waiting<=1;
+                end
+            end
+            if (epoch_state==E_CLEAR) begin
+                if (clear_count==3) begin s_ack<=epoch_seen; epoch_state<=E_RETURN; end
+                else clear_count<=clear_count+1'b1;
+            end
+            if (epoch_state==E_RETURN && return_sync==epoch_seen) begin
+                epoch_state<=E_RUN;
+                if (swap_waiting) begin
+                    swap_waiting<=0; loading<=0; end_pending<=0; abort_pending<=0;
+                    frame_done<=1; frame_ok<=1;
+                end
+            end
+
+            case (state)
+                IDLE: begin
+                    if (abort_pending && !swap_waiting) begin
+                        // The active bus command has finished; queued back data
+                        // may now be discarded without touching the front bank.
+                        source_used<=0; source_wptr<=0; source_rptr<=0;
+                        burst_count<=0; loading<=0; end_pending<=0;
+                        abort_pending<=0; commit_pending<=0;
+                        frame_done<=1; frame_ok<=0;
+                    end else if (epoch_readable && s_ready && !ctrl_busy) begin
+                        if (end_pending && source_used==0 && !commit_pending && !swap_waiting) begin
+                            if (source_count==307200) commit_pending<=1;
+                            else begin error_flags[1]<=1; abort_pending<=1; end
+                        end
+                        if (front_live && fetch_addr<307200 && video_used<=1920 &&
+                            (video_used<1024 || source_used<16 && !end_pending)) begin
+                            state<=CMD_READ;
+                        end else if (!commit_pending && !swap_waiting &&
+                            (source_used>=16 || end_pending && source_used!=0)) begin
+                            burst_count<=0; state<=BUILD_FETCH;
+                        end else if (front_live && fetch_addr<307200 && video_used<=1920) begin
+                            state<=CMD_READ;
+                        end
+                    end
+                end
+                BUILD_FETCH: begin
+                    if (abort_pending || frame_abort) state<=IDLE;
+                    else if (source_used!=0) state<=BUILD_HAVE;
+                    else state<=CMD_WRITE;
+                end
+                BUILD_HAVE: begin
+                    if (abort_pending || frame_abort) state<=IDLE;
+                    else if (head_matches) begin
+                        if (burst_count==0) burst_addr<=source_head[42:24];
+                        burst_mem[burst_count[3:0]]<=source_head[23:0];
+                        burst_count<=burst_count+1'b1;
+                        if (burst_count==15) state<=CMD_WRITE;
+                        else state<=BUILD_FETCH;
+                    end else state<=CMD_WRITE;
+                end
+                CMD_WRITE: if (cmd_ready) begin burst_index<=0; state<=WRITE_FETCH; end
+                WRITE_FETCH: state<=WRITE_SEND;
+                WRITE_SEND: if (ctrl_wr_ready) begin
+                    if ({1'b0,burst_index}+1'b1==burst_count) state<=WRITE_WAIT;
+                    else begin burst_index<=burst_index+1'b1; state<=WRITE_FETCH; end
+                end
+                WRITE_WAIT: if (ctrl_wr_done) state<=IDLE;
+                CMD_READ: if (cmd_ready) begin fetch_addr<=fetch_addr+19'd128; state<=READ_WAIT; end
+                READ_WAIT: if (ctrl_rd_valid && ctrl_rd_last) state<=READ_RECOVER;
+                READ_RECOVER: if (!ctrl_busy) state<=IDLE;
+                default: state<=IDLE;
+            endcase
+        end
+    end
+endmodule
+
+// Dual-clock FIFO, inferred true dual-port memory, registered read port.
+// w_level is conservative because the read Gray pointer crosses two flops.
+// Clear is a coordinated protocol, NOT an asynchronous cross-domain reset:
+// hold rclear until the writer has drained its bus transaction, hold wclear
+// >=4 wclks, then release reader after synchronized writer acknowledgement.
+module media_async_fifo #(
+    parameter integer WIDTH=24, parameter integer ADDR_BITS=11
+)(
+    input wire wclk, input wire wrst_n, input wire wclear,
+    input wire w_en, input wire [WIDTH-1:0] w_data,
+    output wire w_full, output wire [ADDR_BITS:0] w_level,
+    input wire rclk, input wire rrst_n, input wire rclear,
+    input wire r_en, output reg [WIDTH-1:0] r_data, output reg r_valid,
+    output wire r_empty
+);
+    reg [WIDTH-1:0] memory [0:(1<<ADDR_BITS)-1];
+    reg [ADDR_BITS:0] wbin, wgray, rbin, rgray;
+    (* async_reg = "true" *) reg [ADDR_BITS:0] rg_meta, rg_sync;
+    (* async_reg = "true" *) reg [ADDR_BITS:0] wg_meta, wg_sync;
+    wire [ADDR_BITS:0] wnext=wbin+1'b1;
+    wire [ADDR_BITS:0] wnext_gray=(wnext>>1)^wnext;
+    wire [ADDR_BITS:0] rnext=rbin+1'b1;
+    wire [ADDR_BITS:0] rnext_gray=(rnext>>1)^rnext;
+    reg [ADDR_BITS:0] synced_rbin;
+    integer bit_index;
+    always @* begin
+        synced_rbin[ADDR_BITS]=rg_sync[ADDR_BITS];
+        for (bit_index=ADDR_BITS-1;bit_index>=0;bit_index=bit_index-1)
+            synced_rbin[bit_index]=synced_rbin[bit_index+1]^rg_sync[bit_index];
+    end
+    assign w_level=wbin-synced_rbin;
+    assign w_full=wgray=={~rg_sync[ADDR_BITS:ADDR_BITS-1],rg_sync[ADDR_BITS-2:0]};
+    assign r_empty=rgray==wg_sync;
+    always @(posedge wclk or negedge wrst_n) begin
+        if (!wrst_n) begin wbin<=0; wgray<=0; rg_meta<=0; rg_sync<=0; end
+        else if (wclear) begin wbin<=0; wgray<=0; rg_meta<=0; rg_sync<=0; end
+        else begin
+            rg_meta<=rgray; rg_sync<=rg_meta;
+            if (w_en && !w_full) begin
+                memory[wbin[ADDR_BITS-1:0]]<=w_data; wbin<=wnext; wgray<=wnext_gray;
+            end
+        end
+    end
+    // Keep the RAM read register free of asynchronous reset for block-RAM
+    // inference; r_valid, not reset RAM contents, defines output validity.
+    always @(posedge rclk) begin
+        if (r_en && !r_empty && !rclear) r_data<=memory[rbin[ADDR_BITS-1:0]];
+    end
+    always @(posedge rclk or negedge rrst_n) begin
+        if (!rrst_n) begin rbin<=0; rgray<=0; wg_meta<=0; wg_sync<=0; r_valid<=0; end
+        else if (rclear) begin rbin<=0; rgray<=0; wg_meta<=0; wg_sync<=0; r_valid<=0; end
+        else begin
+            wg_meta<=wgray; wg_sync<=wg_meta;
+            r_valid<=r_en && !r_empty;
+            if (r_en && !r_empty) begin rbin<=rnext; rgray<=rnext_gray; end
+        end
+    end
+endmodule

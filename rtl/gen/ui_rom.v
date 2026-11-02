@@ -8,7 +8,7 @@
 //   0 END  1 CLEAR(bg)  2 COLOR(fg,bg)  3 TEXT(arg=str_addr)
 //   4 NUM(arg[7:0]=src, arg[11:8]=位数)  5 ART(arg=精灵号)
 //   6 BAR(arg[7:0]=cur, arg[15:8]=max, 宽固定 12)  7 ENAME  8 ANAME
-//   9 MSG  10 FRAME(arg[5:0]=w, arg[12:8]=h)
+//   9 MSG  10 FRAME(arg[5:0]=w, arg[12:8]=h)  11 ADESC  12 SIDE
 //=============================================================================
 `timescale 1ns/1ps
 
@@ -19,27 +19,27 @@ module font_rom (
     output reg  [15:0] data
 );
     reg [15:0] mem [0:8191];
-    initial $readmemh("rtl/gen/font.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/font.hex", mem);
     always @(posedge clk) data <= mem[{glyph, row}];
 endmodule
 
 module cmd_rom (
     input  wire        clk,
-    input  wire [9:0]  addr,
+    input  wire [8:0]  addr,
     output reg  [31:0] data
 );
-    reg [31:0] mem [0:1023];
-    initial $readmemh("rtl/gen/cmd.hex", mem);
+    reg [31:0] mem [0:511];
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/cmd.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
 module str_rom (
     input  wire       clk,
-    input  wire [10:0] addr,
+    input  wire [9:0] addr,
     output reg  [15:0] data
 );
-    reg [15:0] mem [0:2047];
-    initial $readmemh("rtl/gen/str.hex", mem);
+    reg [15:0] mem [0:1023];
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/str.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -49,7 +49,7 @@ module art_rom (
     output reg  [7:0]  data
 );
     reg [7:0] mem [0:4095];
-    initial $readmemh("rtl/gen/art.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/art.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -110,11 +110,11 @@ module rpg_tables (
 
     always @(*) begin
         case (area_id)
-      3'd0: adesc = 11'd621;
-      3'd1: adesc = 11'd630;
-      3'd2: adesc = 11'd639;
-      3'd3: adesc = 11'd648;
-      3'd4: adesc = 11'd657;
+      3'd0: adesc = 11'd593;
+      3'd1: adesc = 11'd637;
+      3'd2: adesc = 11'd683;
+      3'd3: adesc = 11'd736;
+      3'd4: adesc = 11'd783;
         default: adesc = 55'd0;
         endcase
     end
@@ -199,6 +199,47 @@ module rpg_screens (
             4'd7: addr = 10'd404;   // pic
             4'd8: addr = 10'd302;   // shop2
             default: addr = 10'd0;
+        endcase
+    end
+endmodule
+
+//-----------------------------------------------------------------------------
+// 上下文选句: {区域, 变体} -> 字符串地址。变体 0 血量足, 1 伤重且小怪已清, 2 伤重且仍有小怪。
+//-----------------------------------------------------------------------------
+module rpg_ctx (
+    input  wire [2:0]  area,
+    input  wire [1:0]  varq,
+    output reg  [10:0] ctx,
+    output reg  [10:0] danger
+);
+    always @(*) begin
+        case ({area, varq})
+            {3'd0, 2'd0}: ctx = 11'd593;
+            {3'd0, 2'd1}: ctx = 11'd602;
+            {3'd0, 2'd2}: ctx = 11'd620;
+            {3'd1, 2'd0}: ctx = 11'd637;
+            {3'd1, 2'd1}: ctx = 11'd646;
+            {3'd1, 2'd2}: ctx = 11'd664;
+            {3'd2, 2'd0}: ctx = 11'd683;
+            {3'd2, 2'd1}: ctx = 11'd692;
+            {3'd2, 2'd2}: ctx = 11'd716;
+            {3'd3, 2'd0}: ctx = 11'd736;
+            {3'd3, 2'd1}: ctx = 11'd745;
+            {3'd3, 2'd2}: ctx = 11'd764;
+            {3'd4, 2'd0}: ctx = 11'd783;
+            {3'd4, 2'd1}: ctx = 11'd793;
+            {3'd4, 2'd2}: ctx = 11'd813;
+            default: ctx = 11'd0;
+        endcase
+    end
+    always @(*) begin
+        case (area)
+            3'd0: danger = 11'd0;
+            3'd1: danger = 11'd0;
+            3'd2: danger = 11'd832;
+            3'd3: danger = 11'd844;
+            3'd4: danger = 11'd856;
+            default: danger = 11'd0;
         endcase
     end
 endmodule

@@ -1,11 +1,3 @@
-ADESS = [
-    "田埂草叶挂着露水",
-    "雾气缠着树干不散",
-    "矿灯照着湿滑岩壁",
-    "热浪扑面石头烫脚",
-    "黑曜长廊没有一丝风",
-]
-
 AREAS = [
     ("新手村外", [0, 1, 2, 3],      4),
     ("迷雾森林", [5, 6, 7, 8],      9),
@@ -566,9 +558,9 @@ def build_glyphs(extra=()):
         codes.append(c)
         rows_of[c] = fr.render(c)
 
-    if len(codes) > 511:
+    if len(codes) > 512:
         print("".join(c for c in codes if len(c)==1 and ord(c)>=128))
-        raise SystemExit("字形数 %d 超过 511(9bit 字形码上限), 需要精简文本" % len(codes))
+        raise SystemExit("字形数 %d 超过 512(9bit 字形容量), 需要精简文本" % len(codes))
     idx = {}
     for i, n in enumerate(codes):
         if n not in idx:
@@ -588,6 +580,7 @@ def g(ch):
 # ══════════════════════════════════════════════════════════════
 OP_END, OP_CLEAR, OP_COLOR, OP_TEXT, OP_NUM, OP_ART, OP_BAR, \
 OP_ENAME, OP_ANAME, OP_MSG, OP_FRAME, OP_ADESC = range(12)
+OP_SIDE = 12
 
 SRC = {"hp": 0, "maxhp": 1, "mp": 2, "maxmp": 3, "atk": 4, "def": 5,
        "gold": 6, "lv": 7, "exp": 8, "need": 9, "pot": 10, "potxl": 11,
@@ -673,8 +666,8 @@ def screen_map():
     o += [("color", RPG_LGRAY, BLACK), ("aname", 13, 1)]
     o += [("color", RPG_GRAY, BLACK), ("frame", 1, 2, 38, 1)]
     o += [("color", RPG_LGRAY, BLACK), ("adesc", 2, 4)]
-    o += S(2, 5, "远处有东西在动", RPG_LGRAY)
-    o += [("color", RPG_GRAY, BLACK), ("art", 15, 4, 254)]
+    o += [("color", RPG_LGRAY, BLACK), ("side", 2, 5)]
+    o += [("color", RPG_GRAY, BLACK), ("art", 27, 4, 254)]
     o += [("color", RPG_GRAY, BLACK), ("frame", 1, 13, 38, 1)]
     o += S(2, 14, "勇者", WHITE)
     o += S(7, 14, "级", RPG_GRAY); o += N(9, 14, "lv", 2, YELLOW)
@@ -753,7 +746,7 @@ def screen_shop():
     o += S(16, 23, "大药水", RPG_GRAY); o += N(22, 23, "potxl", 2, WHITE)
     o += S(2, 25, "攻击", RPG_GRAY); o += N(6, 25, "atk", 3, WHITE)
     o += S(12, 25, "防御", RPG_GRAY); o += N(16, 25, "def", 3, WHITE)
-    o += S(2, 27, "打不过就多备点药", DGRAY)
+    o += [("color", DGRAY, BLACK), ("msg", 2, 27)]
     o += [("end",)]
     return o
 
@@ -786,7 +779,7 @@ def screen_shop2():
     o += S(2, 23, "当前攻击", RPG_GRAY); o += N(10, 23, "atk", 3, WHITE)
     o += S(15, 23, "当前防御", RPG_GRAY); o += N(23, 23, "def", 3, WHITE)
     o += S(2, 25, "护符效果永久保留", DGRAY)
-    o += S(2, 27, "金币不够就去多打几场", DGRAY)
+    o += [("color", DGRAY, BLACK), ("msg", 2, 27)]
     o += [("end",)]
     return o
 
@@ -817,6 +810,41 @@ def screen_win():
     return o
 
 
+# 同一地点三句：血量够 / 血量低于三成且小怪已清 / 血量低于三成且小怪还在。
+# 每句必须落在一行里（地图从第 2 列起，最多 36 字）。
+CTX = [
+    ["田埂草叶挂着露水",
+     "村外已无小怪，但你伤重，先回补给站",
+     "村外仍有魔物，你已受伤，不宜硬闯"],
+    ["雾气缠着树干不散",
+     "林中小怪已清，但你伤重，尽快找补给",
+     "林中仍有魔物，你已受伤，先治疗再深入"],
+    ["矿灯照着湿滑岩壁",
+     "洞内已肃清魔物，但你伤势较重，建议尽快寻找补给",
+     "洞内仍有魔物，你已受伤，先找补给再深入"],
+    ["热浪扑面石头烫脚",
+     "火山小怪已清，但你伤重，尽快离开补给",
+     "火山仍有魔物，你已受伤，不要继续深入"],
+    ["黑曜长廊没有一丝风",
+     "城堡已肃清，但你伤势较重，先治疗再前进",
+     "城堡仍有魔物，你已受伤，退回补给再战"],
+]
+ADESS = [row[0] for row in CTX]
+DANGERS = [
+    "",
+    "",
+    "矿洞区域危险，注意身后",
+    "火山地带危险，热浪灼人",
+    "城堡区域危险，强敌靠近",
+]
+for _row in CTX:
+    for _s in _row:
+        if len(_s) > 36:
+            raise SystemExit("上下文句子超过 36 字: " + _s)
+for _s in DANGERS:
+    if len(_s) > 36:
+        raise SystemExit("危险提示超过 36 字: " + _s)
+
 MSGS = [
     ("MSG_NONE",    ""),
     ("MSG_HIT",     "你发起攻击"),
@@ -834,6 +862,12 @@ MSGS = [
     ("MSG_BUY",     "买好了"),
     ("MSG_UPGRADE", "强化了"),
     ("MSG_NOKILLS", "讨伐还不够"),
+    ("MSG_BOSS",    "！强敌降临！"),
+    ("MSG_DYING",   "！伤势危急！"),
+    ("MSG_MEET",    "遭遇魔物"),
+    ("MSG_HINT",    "打不过就多备点药"),
+    ("MSG_HINT2",   "金币不够就去多打几场"),
+    ("MSG_FAR",     "远处有东西在动"),
 ]
 
 SCREENS = {
@@ -850,7 +884,8 @@ SCREENS = {
 
 _extra_text = [op[3] for ops in SCREENS.values() for op in ops if op[0] == "text"]
 _extra_text += [t for _, t in MSGS]
-_extra_text += ADESS          # 区域环境描述也要进字库
+_extra_text += [s for row in CTX for s in row]
+_extra_text += [s for s in DANGERS if s]
 CODES, ROWS_OF, GIDX = build_glyphs(_extra_text)
 
 # ══════════════════════════════════════════════════════════════
@@ -903,6 +938,8 @@ def emit(ops):
             out.append((OP_ANAME, op[2], op[1], 0))
         elif k == "adesc":
             out.append((OP_ADESC, op[2], op[1], 0))
+        elif k == "side":
+            out.append((OP_SIDE, op[2], op[1], 0))
         elif k == "msg":
             out.append((OP_MSG, op[2], op[1], 0))
         elif k == "frame":
@@ -1019,6 +1056,10 @@ def draw_ops(ops, enemy_id=0, area_id=0, msg_text=SAMPLE_MSG, dyn_sprite=None):
             put_name(op[1], op[2], ENEMY_NAMES, enemy_id, NAME_ENEMY_W, fg, bg)
         elif k == "aname":
             put_name(op[1], op[2], AREA_NAMES, area_id, NAME_AREA_W, fg, bg)
+        elif k == "adesc":
+            put_str(op[1], op[2], CTX[area_id][0], fg, bg)
+        elif k == "side":
+            put_str(op[1], op[2], "远处有东西在动", fg, bg)
         elif k == "msg":
             put_str(op[1], op[2], msg_text, fg, bg)
         elif k == "frame":
@@ -1070,15 +1111,11 @@ PREVIEWS = [
     ("map", dict(area_id=0)),
     ("battle", dict(enemy_id=0, dyn_sprite=0, msg_text="你发起攻击")),
     ("battle", dict(enemy_id=14, dyn_sprite=14, msg_text="深渊领主反击")),
-    ("shop", dict()),
+    ("shop", dict(msg_text="打不过就多备点药")),
     ("dead", dict()),
     ("win", dict()),
 ]
-for i, (name, kw) in enumerate(PREVIEWS):
-    grid = draw_ops(SCREENS[name], **kw)
-    fn = os.path.join(PREV, "%d_%s.png" % (i, name))
-    grid_to_png(grid, fn)
-    print("预览:", fn)
+# Previews are emitted only after all ROM capacity checks pass.
 
 # ══════════════════════════════════════════════════════════════
 # 输出 Verilog / hex
@@ -1099,15 +1136,11 @@ for code in range(512):
     else:
         rows = [0] * 16
     font_words.extend(rows)
-w_hex("font.hex", font_words, 16)
 
 cmd_words = []
 for (op, y, x, arg) in CMD_ROM:
     cmd_words.append((op << 28) | (y << 23) | (x << 17) | (arg & 0x1FFFF))
-w_hex("cmd.hex", cmd_words, 32)
 
-w_hex("str.hex", STR.data, 16)
-w_hex("art.hex", ART.data, 8)
 
 # 名字表 -> Verilog case
 area_case = []
@@ -1135,10 +1168,18 @@ for i, (nm, hp, atk, df, exp, gold, spr, boss) in enumerate(ENEMIES):
         ((spr & 0x1F) << 48) | ((boss & 1) << 53) | ((i & 0x1F) << 54)
     enemy_stat_case.append("      5'd%d: es = 64'h%016X;" % (i, v))
 
-adesc_addr = [enc_string(t) for t in ADESS]
+ctx_addr = [[enc_string(s) for s in row] for row in CTX]
+danger_addr = [enc_string(s) if s else 0 for s in DANGERS]
 adesc_case = []
-for i, a in enumerate(adesc_addr):
-    adesc_case.append("      3'd%d: adesc = 11'd%d;" % (i, a))
+for i, row in enumerate(ctx_addr):
+    adesc_case.append("      3'd%d: adesc = 11'd%d;" % (i, row[0]))
+ctx_case = []
+for i, row in enumerate(ctx_addr):
+    for v, a in enumerate(row):
+        ctx_case.append("            {3'd%d, 2'd%d}: ctx = 11'd%d;" % (i, v, a))
+danger_case = []
+for i, a in enumerate(danger_addr):
+    danger_case.append("            3'd%d: danger = 11'd%d;" % (i, a))
 
 area_mob_case = []
 for i, (nm, mobs, boss) in enumerate(AREAS):
@@ -1156,7 +1197,23 @@ for name, text in MSGS:
 
 # 消息字符串是在上面才追加进去的, 所以必须重新写一次 str.hex。
 # (原来漏了这步, 结果 MSG 读到表尾之外, 整个战斗页被刷成垃圾)
+if len(STR.data) > 1024:
+    raise SystemExit("字符串表 %d 超过 1024，会撑破当前 str_rom" % len(STR.data))
+if len(CMD_ROM) > 512:
+    raise SystemExit("指令数 %d 超过 512，会撑破当前 cmd_rom" % len(CMD_ROM))
+# All hardware payloads are constructed and validated before the first write.
+if len(CODES) > 512 or len(font_words) != 8192:
+    raise SystemExit("字库超过512字形/8192行容量")
+if len(ART.data) > 4096:
+    raise SystemExit("字符插图超过4096字节容量")
+for _values, _bits in ((font_words, 16), (cmd_words, 32), (STR.data, 16), (ART.data, 8)):
+    if any(_v < 0 or _v >= (1 << _bits) for _v in _values):
+        raise SystemExit("ROM数据值超出声明位宽")
+w_hex("font.hex", font_words, 16)
+w_hex("cmd.hex", cmd_words, 32)
 w_hex("str.hex", STR.data, 16)
+w_hex("art.hex", ART.data, 8)
+
 print("字符串表最终长度: %d 字节 (含 %d 条消息)" % (len(STR.data), len(MSGS)))
 
 msg_lines = "\n".join("    localparam [10:0] %-14s = 11'd%d;" % (n, a)
@@ -1166,11 +1223,12 @@ art_lines = "\n".join("            6'd%-3d: b = 12'd%d;" % (k, v) for k, v in so
 
 defs_lines = "\n".join("`define %-14s 11'd%d" % (n, a) for n, a in msg_addr.items())
 defs_lines += "\n`define G_DIG_BASE     9'd%d" % GIDX["0"]   # '0'..'9' 连续排布
-with open(os.path.join(GEN, "rpg_defs.vh"), "w", encoding="utf-8", newline="\n") as f:
-    f.write("// 自动生成: 消息字符串地址(用 `include \"rpg_defs.vh\" 引入)\n")
-    f.write("`ifndef RPG_DEFS_VH\n`define RPG_DEFS_VH\n")
-    f.write(defs_lines + "\n")
-    f.write("`endif\n")
+defs_text = ("// 自动生成: 消息字符串地址(用 `include \"rpg_defs.vh\" 引入)\n"
+             "`ifndef RPG_DEFS_VH\n`define RPG_DEFS_VH\n" + defs_lines + "\n`endif\n")
+for _defs_path in (os.path.join(GEN, "rpg_defs.vh"),
+                   os.path.join(ROOT, "rtl", "ctrl", "rpg_defs.vh")):
+    with open(_defs_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(defs_text)
 
 art_lines = "\n".join("            6'd%-3d: b = 12'd%d;" % (k, v) for k, v in sorted(SPR_BASE.items()))
 
@@ -1204,7 +1262,7 @@ ui_v = """//====================================================================
 //   0 END  1 CLEAR(bg)  2 COLOR(fg,bg)  3 TEXT(arg=str_addr)
 //   4 NUM(arg[7:0]=src, arg[11:8]=位数)  5 ART(arg=精灵号)
 //   6 BAR(arg[7:0]=cur, arg[15:8]=max, 宽固定 12)  7 ENAME  8 ANAME
-//   9 MSG  10 FRAME(arg[5:0]=w, arg[12:8]=h)
+//   9 MSG  10 FRAME(arg[5:0]=w, arg[12:8]=h)  11 ADESC  12 SIDE
 //=============================================================================
 `timescale 1ns/1ps
 
@@ -1215,27 +1273,27 @@ module font_rom (
     output reg  [15:0] data
 );
     reg [15:0] mem [0:8191];
-    initial $readmemh("rtl/gen/font.hex", mem);
+    initial $readmemh("__ROMROOT__/font.hex", mem);
     always @(posedge clk) data <= mem[{glyph, row}];
 endmodule
 
 module cmd_rom (
     input  wire        clk,
-    input  wire [9:0]  addr,
+    input  wire [8:0]  addr,
     output reg  [31:0] data
 );
-    reg [31:0] mem [0:1023];
-    initial $readmemh("rtl/gen/cmd.hex", mem);
+    reg [31:0] mem [0:511];
+    initial $readmemh("__ROMROOT__/cmd.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
 module str_rom (
     input  wire       clk,
-    input  wire [10:0] addr,
+    input  wire [9:0] addr,
     output reg  [15:0] data
 );
-    reg [15:0] mem [0:2047];
-    initial $readmemh("rtl/gen/str.hex", mem);
+    reg [15:0] mem [0:1023];
+    initial $readmemh("__ROMROOT__/str.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -1245,7 +1303,7 @@ module art_rom (
     output reg  [7:0]  data
 );
     reg [7:0] mem [0:4095];
-    initial $readmemh("rtl/gen/art.hex", mem);
+    initial $readmemh("__ROMROOT__/art.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -1345,7 +1403,39 @@ endmodule
        SCREEN_ADDR["battle"], SCREEN_ADDR["shop"], SCREEN_ADDR["dead"], SCREEN_ADDR["win"],
        SCREEN_ADDR["pic"], SCREEN_ADDR["shop2"])
 
+ctx_v = """
+//-----------------------------------------------------------------------------
+// 上下文选句: {区域, 变体} -> 字符串地址。变体 0 血量足, 1 伤重且小怪已清, 2 伤重且仍有小怪。
+//-----------------------------------------------------------------------------
+module rpg_ctx (
+    input  wire [2:0]  area,
+    input  wire [1:0]  varq,
+    output reg  [10:0] ctx,
+    output reg  [10:0] danger
+);
+    always @(*) begin
+        case ({area, varq})
+%s
+            default: ctx = 11'd0;
+        endcase
+    end
+    always @(*) begin
+        case (area)
+%s
+            default: danger = 11'd0;
+        endcase
+    end
+endmodule
+""" % ("\n".join(ctx_case), "\n".join(danger_case))
+
+rom_root = GEN.replace("\\", "/")
 with open(os.path.join(GEN, "ui_rom.v"), "w", encoding="utf-8", newline="\n") as f:
-    f.write(ui_v)
+    f.write(ui_v.replace("__ROMROOT__", rom_root) + ctx_v)
 
 print("生成完毕: rtl/gen/{font.hex, cmd.hex, str.hex, art.hex, ui_rom.v}")
+
+for i, (name, kw) in enumerate(PREVIEWS):
+    grid = draw_ops(SCREENS[name], **kw)
+    fn = os.path.join(PREV, "%d_%s.png" % (i, name))
+    grid_to_png(grid, fn)
+    print("预览:", fn)

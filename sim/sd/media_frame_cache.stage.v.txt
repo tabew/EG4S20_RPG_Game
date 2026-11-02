@@ -1,0 +1,115 @@
+// Four logical2MiB SDRAM slots, each holds307200 RGB888 words.
+// Metadata is committed only after the framebuffer pixel-domain acknowledgement.
+module media_frame_cache #(
+    parameter integer ENABLE_CACHE=1
+)(
+    input wire clk,rst_n,
+    input wire request_go,input wire[5:0]request_index,input wire cancel_go,
+    input wire cat_ready,raw_busy,raw_done,raw_cancelled,raw_valid,
+    input wire[1:0]raw_error,input wire[5:0]raw_index,input wire[63:0]raw_name,
+    input wire frame_begin,frame_done,frame_ok,front_valid,input wire[1:0]front_bank,
+    output reg decode_go,output reg[5:0]decode_index,
+    output reg[1:0]write_bank,output reg swap_only,output reg[1:0]swap_bank,
+    output reg frame_end,frame_abort,
+    output reg publication_pending,output wire transaction_busy,
+    output reg published_valid,published_done,output reg[1:0]published_error,
+    output reg[5:0]published_index,output reg[63:0]published_name,
+    output reg[15:0]cache_hits,cache_misses
+);
+    reg[3:0]valid_slot;
+    reg[5:0]slot_index[0:3];reg[63:0]slot_name[0:3];reg[1:0]slot_age[0:3];
+    reg active,active_hit,completion_seen,completion_ok,cancelled;
+    reg[1:0]active_bank,pending_error;
+    reg hit;reg[1:0]hit_bank,victim;reg found_free;reg[1:0]oldest;
+    integer i,j;
+    assign transaction_busy=active;
+    always @* begin
+        hit=0;hit_bank=0;victim=front_bank+2'd1;found_free=0;oldest=0;
+        for(i=0;i<4;i=i+1) begin
+            if(ENABLE_CACHE!=0 && cat_ready && valid_slot[i] && slot_index[i]==request_index) begin hit=1;hit_bank=i;end
+            if(i!=front_bank && !valid_slot[i] && !found_free) begin victim=i;found_free=1;end
+        end
+        if(!found_free) begin
+            for(i=0;i<4;i=i+1) begin
+                if(i!=front_bank && slot_age[i]>=oldest) begin victim=i;oldest=slot_age[i];end
+            end
+        end
+    end
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) begin
+            valid_slot<=0;active<=0;active_hit<=0;active_bank<=1;write_bank<=1;
+            completion_seen<=0;completion_ok<=0;cancelled<=0;pending_error<=0;
+            decode_go<=0;decode_index<=0;swap_only<=0;swap_bank<=0;
+            frame_end<=0;frame_abort<=0;publication_pending<=0;
+            published_valid<=0;published_done<=0;published_error<=0;published_index<=0;published_name<=0;
+            cache_hits<=0;cache_misses<=0;
+            for(j=0;j<4;j=j+1) begin slot_index[j]<=0;slot_name[j]<=0;slot_age[j]<=3;end
+        end else begin
+            decode_go<=0;swap_only<=0;frame_end<=0;frame_abort<=0;published_done<=0;
+            if(!cat_ready) begin
+                valid_slot<=0;
+                for(j=0;j<4;j=j+1) slot_age[j]<=3;
+                if(!active && !publication_pending) write_bank<=front_bank+2'd1;
+            end
+            // Boot autoload has no external request. Header arrival reserves its
+            // already-selected non-front slot; normal misses reserve at request.
+            if(frame_begin) begin
+                completion_seen<=0;completion_ok<=0;
+                if(ENABLE_CACHE!=0) valid_slot[write_bank]<=0;
+                if(!active) begin
+                    active<=1;active_hit<=0;active_bank<=write_bank;cancelled<=0;
+                    cache_misses<=cache_misses+1'b1;
+                end
+            end
+            if(frame_done) begin completion_seen<=1;completion_ok<=frame_ok;end
+            if(cancel_go) begin
+                cancelled<=1;
+                if(publication_pending && !completion_seen && !frame_done) frame_abort<=1;
+            end
+            if(raw_done) begin
+                publication_pending<=1;pending_error<=raw_error;
+                if(raw_cancelled) cancelled<=1;
+                if(!(completion_seen||frame_done)) begin
+                    if(raw_error==0 && raw_valid && !cancelled && !cancel_go && !raw_cancelled) frame_end<=1;
+                    else frame_abort<=1;
+                end
+            end
+            if(publication_pending && completion_seen &&
+               (!completion_ok || ENABLE_CACHE==0 || (front_valid && front_bank==active_bank))) begin
+                publication_pending<=0;completion_seen<=0;active<=0;published_done<=1;
+                published_valid<=front_valid;
+                published_error<=completion_ok?0:((cancelled||cancel_go||raw_cancelled)?0:((pending_error!=0)?pending_error:2'd3));
+                if(completion_ok) begin
+                    if(active_hit && ENABLE_CACHE!=0) begin
+                        published_index<=slot_index[front_bank];published_name<=slot_name[front_bank];
+                    end else begin
+                        published_index<=raw_index;published_name<=raw_name;
+                        if(ENABLE_CACHE!=0 && cat_ready) begin
+                            valid_slot[front_bank]<=1;slot_index[front_bank]<=raw_index;slot_name[front_bank]<=raw_name;
+                        end
+                    end
+                    if(ENABLE_CACHE!=0 && cat_ready) begin
+                        for(j=0;j<4;j=j+1) begin
+                            if(j==front_bank) slot_age[j]<=0;
+                            else if(valid_slot[j] && slot_age[j]<slot_age[front_bank]) begin
+                                if(slot_age[j]!=3) slot_age[j]<=slot_age[j]+1'b1;
+                            end
+                        end
+                    end
+                end
+                active_hit<=0;
+            end
+            if(request_go && !active && !publication_pending) begin
+                active<=1;cancelled<=0;completion_seen<=0;completion_ok<=0;pending_error<=0;
+                decode_index<=request_index;
+                if(hit) begin
+                    active_hit<=1;active_bank<=hit_bank;swap_bank<=hit_bank;swap_only<=1;
+                    publication_pending<=1;cache_hits<=cache_hits+1'b1;
+                end else begin
+                    active_hit<=0;active_bank<=victim;write_bank<=victim;decode_go<=1;
+                    cache_misses<=cache_misses+1'b1;
+                end
+            end
+        end
+    end
+endmodule

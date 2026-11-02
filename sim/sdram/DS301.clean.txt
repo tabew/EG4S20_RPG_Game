@@ -1,0 +1,1519 @@
+SALEAGLE�4S20  FPGA
+          
+
+ 
+  DS_301v2.7.82025  12 
+
+                                                 ALQR-7.5-11
+                              SALEAGLE�4S20  FPGA 
+
+              
+
+  ....................................................... I
+
+1  ..................................................... 1
+
+   1.1 SALEAGLE�4 EG4S20  ................................... 1
+   1.2 EG4S20  ............................................................ 2
+
+2 EG4S20 ........................................... 3
+
+3 EG4S20 ......................................... 3
+
+4 EG4S20  SDRAM ......................................... 3
+
+5 EG4S20 FPGA  ...................................... 6
+
+   5.1 EG4S20  ............................................................ 6
+   5.2 FPGA I/O  .............................................. 7
+   5.3 FPGA I/O  ............................................. 7
+
+6  ............................................... 9
+
+   6.1  .................................................................. 9
+   6.2 IO ............................................................... 11
+   6.3 EG4S20NG88 FPGA  .................................................. 12
+   6.4 EG4S20BG256 FPGA  ................................................. 15
+   6.5 EG4S20CG324 FPGA  ................................................. 20
+   6.6 EG4S20NG88  ....................................................... 26
+   6.7 EG4S20BG256  ...................................................... 27
+   6.8 EG4S20CG324  ...................................................... 28
+
+7  ................................................ 29
+
+DS301_2.7.8  www.anlogic.com  I
+
+2025.12
+                                                                              SALEAGLE�4S20  FPGA 
+
+ .................................................. 31
+
+ .................................................. 33
+
+DS301_2.7.8  www.anlogic.com  II
+
+2025.12
+                                      SALEAGLE�4S20  FPGA 
+
+1 
+
+SALEAGLE�4 EG4S20 
+
+                                100
+
+ 19600 LUTs                    
+
+                               16 
+
+  55nm                         4  PLLs 
+
+  5mA                          5 
+
+                                1  128
+
+ 64  9Kbits  RAM(ERAM9K),16     5 
+
+32Kbits  RAM                   
+
+ 64Mb SDRAM                     IP
+
+  156.8Kbits  RAM              ADC
+
+ (PLBs)                             - 12 SAR
+
+  LUT4/LUT5                         -  8 
+
+                                    - 1MHz MSPS
+
+                               
+
+                               
+
+                               
+
+ 29  18 x 18  9 x 9             SPI(MSPI)
+
+ /                             (SS)
+
+ / DDR                          x8(MP)
+
+ Generic DDRx1                  x8(SP)
+
+ Generic DDRx2                 JTAG (IEEE-1532)
+
+ /                              DUAL BOOT  MULTI BOOT
+
+                               BSCAN
+
+ /                              IEEE-1149.1
+
+DS301_2.7.8        www.anlogic.com                     1
+
+2025.12
+                                                   SALEAGLE�4S20  FPGA 
+
+              10mm�10mm,0.4mm pitch
+       NG88   17mm�17mm,1.0mm pitch
+       BG256  15mm�15mm,0.8mm pitch
+
+      CG324
+
+                                 1-1 EG4S20 
+
+   General feature    EG4S20NG88     EG4S20BG256   EG4S20BG256B  EG4S20CG324
+     Number of FFs       19,600         19,600         19,600       19,600
+    Number of LUTS       19,600         19,600         19,600       19,600
+      Dis-Ram bits      156,800         156,800       156,800       156,800
+                            64             64             64           64
+Number of ERAM (9k)         16             16             16           16
+Number of ERAM (32k)     1,088           1,088          1,088        1,088
+Total ERAM bitsK            29             29             29           29
+                            4               4              4            4
+   Number of M18x18         16             16             16           16
+            PLL                                            -
+                      2Mx32bits       2Mx32bits            4      2Mx32bits
+     Low-skew GCLK          8               4            193            4
+         EM SDRAM           71             193
+                                                                       215
+     User IO Banks
+   Maximum user IOs
+
+                                 1-2 EG4S20 FPGA 
+
+                 Packages         EG4S20NG88       EG4S20BG256    EG4S20CG324
+                                                   EG4S20BG256B
+    QFN88 (10x10, 0.4mm pitch)    71/9+8                                  -
+   BGA256 (17x17, 1.0mm pitch)          -                   -             -
+    CG324 (15x15, 0.8mm pitch)          -          193/42+44     215/50+54
+
+                                                            -
+
+71/9+8 IO / True LVDS + Emulated LVDS 
+
+DS301_2.7.8                       www.anlogic.com                              2
+
+2025.12
+                              SALEAGLE�4S20  FPGA 
+
+EG4S20 
+
+       EG4S20 FPGA FPGA----EG4X20
+ 3D  2M X 32bits  SDRAM EG4S20  QFN
+ IO  BGA 
+
+
+      
+ 
+
+        64Mb SDRAM 32  200MHz 
+            800MB/s
+
+        64  ERAM9K  RAM, RAM  FIFO 
+             512x18, 1Kx9, 2Kx4, 4Kx2, 8Kx1,  220MHz
+
+        16  32Kb RAM RAM RAM 2K�16  4K�8
+  IO PCB 
+
+       BGA256  1.0mm  17mm � 17mm
+       QFN88  0.4mm 10mm � 10mm
+       CG324  0.8mm  15mm � 15mm
+        PCB  IO
+        SPI FLASH FLASH 
+  IP
+        BANK 
+       
+
+DS301_2.7.8  www.anlogic.com  2
+
+2025.12
+                                          SALEAGLE�4S20  FPGA 
+
+2 EG4S20 
+
+       EG4X20DS300_Eagle_Datasheet
+
+3 EG4S20 
+
+       EG4X20DS300_Eagle_Datasheet
+
+4 EG4S20  SDRAM
+
+      EG4S20  2M � 32bit  SDRAMEM638325 200MHz 
+800MB/sSDRAM  FPGA  SDRAM IP generate 
+ IP  IP 
+
+EG_PHY_SDRAM_2M_32 U_EG_PHY_SDRAM_2M_32(
+
+.clk(CLK),    // SDRAM  1bit 
+
+.ras_n(RAS_N), // SDRAM  1bit 
+
+.cas_n(CAN_N), //SDRAM  1bit 
+
+.we_n(WE_N), //SDRAM  1bit 
+
+.addr(SA),    //SDRAM  11bits 
+
+.ba(BA),      // SDRAM BANK  2bits 
+
+.dq(DQ),      //SDRAM  32bits 
+
+.cs_n(CS_N),  //SDRAM  1bit  
+
+.cke(CKE),    //SDRAM  1bit 
+
+.dm0(DM0),    //SDRAM  0 1bit 
+
+.dm1(DM1),    //SDRAM  1 1bit 
+
+.dm2(DM2),    //SDRAM  2 1bit 
+
+.dm3(DM3)     //SDRAM  3 1bit 
+
+);
+
+DS301_2.7.8   www.anlogic.com             3
+
+2025.12
+                                          SALEAGLE�4S20  FPGA 
+
+                          4-1 SDRAM 
+
+            SDRAM          SDRAM          
+                    DQ0         0          IP 
+                    DQ1         1          IP 
+                    DQ2         2          IP 
+                    DQ3         3          IP 
+                    DQ4         4          IP 
+                    DQ5         5          IP 
+                    DQ6         6          IP 
+                    DQ7         7          IP 
+                    DQ8         8          IP 
+                    DQ9         9          IP 
+                   DQ10         10         IP 
+                   DQ11         11         IP 
+                   DQ12         12         IP 
+                   DQ13         13         IP 
+                   DQ14         14         IP 
+                   DQ15         15         IP 
+                   DQ16         16         IP 
+                   DQ17         17         IP 
+                   DQ18         18         IP 
+                   DQ19         19         IP 
+                   DQ20         20         IP 
+                   DQ21         21         IP 
+                   DQ22         22         IP 
+                   DQ23         23         IP 
+                   DQ24         24         IP 
+                   DQ25         25         IP 
+                   DQ26         26         IP 
+                   DQ27         27         IP 
+                   DQ28         28         IP 
+                   DQ29         29         IP 
+                   DQ30         30         IP 
+                   DQ31         31         IP 
+                    SA0         0          IP 
+                    SA1         1          IP 
+                    SA2         2          IP 
+
+DS301_2.7.8              www.anlogic.com                             4
+
+2025.12
+         SDRAM        SDRAM            SALEAGLE�4S20  FPGA 
+                SA3        3                             
+                SA4        4                             IP 
+                SA5        5                             IP 
+                SA6        6                             IP 
+                SA7        7                             IP 
+                SA8        8                             IP 
+                SA9        9                             IP 
+                SA10       10                            IP 
+                BA0                                      IP 
+                BA1    BANK  0                           IP 
+                WE_N   BANK  1                           IP 
+                                                         IP 
+               RAS_N                                     IP 
+               CAS_N                                     IP 
+                                                         IP 
+                CLK                                      
+                CS_N                                     
+                DM0                                      
+                DM1     0-7                              
+                DM2    8-15                              
+                DM3    16-23                             
+                CKE    24-31 
+
+                          
+
+DS301_2.7.8           www.anlogic.com  5
+
+2025.12
+                                           SALEAGLE�4S20  FPGA 
+
+5 EG4S20 FPGA 
+
+      EAGLE FPGA MSPI  JTAG 
+ M[1:0]
+
+      EAGLE  FPGA  4.8M6M bits ERAM 
+ 6M bits SPI  FLASH M25PxxSST25LFxxx
+ S25FLxxx EAGLE FPGA  0X03  SPI FLASH
+
+EG4S20 
+
+                  5-1 EG4S20 
+
+                          
+
+                 SS       SP               MSPI            MP
+                                                       
+                                             SPI        Master     JTAG
+                   Slave    Slave          Master SPI  Parallel
+                  serial                                            XX
+                          Parallel          Standard      (X8)       -
+                                                           00        -
+     M[1:0]      11       10               01                        -
+   PROGRAM_B                                             CSI_B       -
+                              PROGRAM_B                     -        -
+     INIT_B                                                          -
+      DONE                        INIT_B                         TMS TCK
+      CCLK                                                       TDO TDI
+                                    DONE                             -
+  MOSI_CSI_B                                                         -
+      CSO_B                         CCLK                             -
+    TMS TCK
+    TDO TDI      -        CSI_B            MOSI
+     D[7:2]    
+      D[1]       -        -                CSO_B
+
+D[0]_DIN_MISO    -        -                -           -
+
+                 -        D[7:2]           -           D[7:2]
+
+                 -        D[1]             -           D[1]
+
+                 DIN      D[0]             MISO        D[0]
+
+DS301_2.7.8               www.anlogic.com                                 6
+
+2025.12
+                                               SALEAGLE�4S20  FPGA 
+
+FPGA I/O 
+
+       FPGA / I/O 
+ HSWAPEN  I/O 
+
+FPGA I/O 
+
+ IO
+
+ IO  HSWAPEN 
+
+
+ EG4S20 HSWAPEN  0  I/O HSWAPEN  1 
+ I/O 
+
+ IO 
+
+ EG4S20 HSWAPEN  I/O 
+
+                     5-2 EG4S20 Pin Termination
+
+            Pin     Pre-configuration                      Post-configuration
+
+          M[1:0]    HSWAPEN=0(enable)  HSWAPEN=1(disable)         User I/O
+        PROGRAM_B                                            ProgPin 
+                    Pull-up to Vccio   Pull-up to Vccio
+          INIT_B                                                  User I/O
+            DONE    Pull-up to Vccio   Pull-up to Vccio      DonePin 
+            CCLK                                              SpiPin 
+                    Pull-up to Vccio   Pull-up to Vccio       SpiPin 
+       MOSI_CSI_B1                                           JtagPin 
+   TMS TCK TDO TDI  Pull-up to Vccio   Pull-up to Vccio
+                                                                  User I/O
+          D[7:1]    Pull-up to Vccio   Pull-up to Vccio       SpiPin 
+     D[0]_DIN_MISO                                            SpiPin 
+                    Pull-down to Gnd   Pull-down to Gnd
+           CSO_B                                                  User I/O
+         HSWAPEN    Pull-up to Vccio   Pull-up to Vccio           User I/O
+          Others
+                    Pull-up to Vccio   Pull-up to Vccio
+
+                    Pull-up to Vccio   Pull-up to Vccio
+
+                    Pull-up to Vccio   Pull-up to Vccio
+
+                    Pull-up to Vccio   Pull-up to Vccio
+
+                    Pull-up to Vccio   High-Z
+
+EG4S20  MOSI_CSI_B  JTAG SS  MSPI 
+
+DS301_2.7.8         www.anlogic.com                                            7
+
+2025.12
+                                                                                SALEAGLE�4S20  FPGA 
+EG4S20  output  inout 
+
+TR303_EG4X20 N9 IO 
+
+               5-3 EG4S20 
+
+    DEVICE                                                 PIN NAME
+ EG4S20NG88   -
+EG4S20BG256   L13,M13,L14,M14,K15,R1,P9,R14,R12,M10,P11,L10
+EG4S20BG256B  M14, L14, L15,M16,L16,P18,L5,V9,V14,V15,U15,T15,V16
+EG4S20CG324
+
+DS301_2.7.8   www.anlogic.com                                        8
+
+2025.12
+                                          SALEAGLE�4S20  FPGA 
+
+6                              6-1 
+
+                                                                
+                                       
+                         
+              NC         
+             GND          PAD
+                         
+          GND_EPAD       I/O 
+             VCC         
+                         PLL 
+            VCCIO                 JTAG 
+           VCCAUX        TCK 
+         GND_PLLAx       
+                         
+             TCK         
+             TDI                     
+             TDO         MOSIMSPI  SPI Flash 
+             TMS         
+                         CSI_B
+        MOSI_CSI_B       D0
+                    I/O  DIN
+       D0_DIN_MISO       MISOMSPI 
+           M[1:0]   I/O  
+                         
+         PROGRAM_B  I/O  
+             CCLK        
+                         1 DONE 
+             DONE        
+                         2 USER I/O
+           INIT_B        
+ DS301_2.7.8             
+ 2025.12                 
+
+                         www.anlogic.com  9
+ CSO_B                                                        SALEAGLE�4S20  FPGA 
+HSWAPEN                 FPGA 
+                       1 INITB 
+                       
+                       2 USER I/O
+                       
+                       
+             I/O MSPI FLASH 
+             I/O I/O 
+
+DS301_2.7.8  www.anlogic.com  10
+
+2025.12
+IO                                                   SALEAGLE�4S20  FPGA 
+
+         IO            IO B E 1 N 0
+          
+          T----top                                           IOBANK
+          L----left
+          B----bottom                                         
+          R----right                                          N----N
+                                                              P----P
+                                                             
+          E----
+          NULL----
+
+DS301_2.7.8            www.anlogic.com  11
+
+2025.12
+                                     SALEAGLE�4S20  FPGA 
+
+EG4S20NG88 FPGA 
+
+         BANK1         EG4S20NG88                    
+  1        -    VCC                                         
+  2        1    IO_L1_1                       IO             -
+  3        1    IO_L2_1                       IO             -
+  4        1    IO_L1N_1                      IO             -
+  5        1    IO_L1P_1                      IO             -
+  6        1    GND                                         
+  7        1    VCCIO1               3.3V BANK1 IO          
+  8        1    IO_L3_1,DONE          / IO                  
+  9        1    VCCIO1               3.3V BANK1 IO          
+ 10        1    IO_L2P_1, GCLKIOL_3           IO             -
+ 11        1    IO_L2N_1,GCLKIOL_2            IO             -
+ 12        2    IO_L2P_2,GCLKIOL_5            IO             -
+ 13        2    IO_L2N_2,GCLKIOL_4            IO             -
+ 14        2    IO_L5_2                       IO             -
+ 15        2    VCCIO2               3.3V BANK2 IO          
+ 16        2    IO_L1N_2                      IO             -
+ 17        2    IO_L1P_2                      IO             -
+ 18        2    IO_L1_2                       IO             -
+ 19        2    IO_L2_2                       IO             -
+ 20        2    VCCIO2               3.3V BANK2 IO          
+ 21        2    IO_L3_2,TDO              JTAG/ IO           
+ 22        2    IO_L4_2,TMS              JTAG/ IO           
+ 23        3    IO_B1_3                       IO             -
+ 24        3    VCCIO3                  BANK3 IO            
+ 25        3    IO_B2_3,TDI              JTAG/ IO           
+ 26        3    IO_B3_3,TCK              JTAG/ IO           
+ 27        3    IO_B4_3                       IO             -
+ 28        3    IO_BE1N_3                     IO             -
+ 29        3    IO_BE1P_3                     IO             -
+ 30        3    IO_B5_3                       IO             -
+ 31        3    IO_B6_3                       IO             -
+ 32        3    IO_BE2P_3                     IO             -
+ 33        3    IO_BE2N_3                     IO             -
+ 34        3    IO_B7_3,GCLKIOB_5             IO             -
+
+DS301_2.7.8       www.anlogic.com                    12
+
+2025.12
+                                 SALEAGLE�4S20  FPGA 
+
+     BANK1          EG4S20NG88                   
+ 35    4     IO_B1_4,GCLKIOB_2
+ 36    4     VCC                  IO             -
+ 37    4     IO_BE1P_4
+ 38    4     IO_BE1N_4                           
+ 39    4     IO_B2_4
+ 40    4     IO_BE2N_4            IO             -
+ 41    4     IO_BE2P_4
+ 42    4     IO_B3_4              IO             -
+ 43    4     VCCIO4
+ 44    4     IO_B4_4,HSWAPEN      IO             -
+ 45    5     IO_R1_5
+ 46    5     VCCIO5               IO             -
+ 47    5     IO_R1P_5
+ 48    5     IO_R1N_5             IO             -
+ 49    5     IO_R2P_5
+ 50    5     IO_R2N_5             IO             -
+ 51    5     IO_R2_5
+ 52    5     IO_R3_5             BANK4 IO        
+ 53    5     VCCIO5
+ 54    5     IO_R3N_5,GCLKIOR_0  IO / IO         -
+ 55    5     IO_R3P_5,GCLKIOR_1
+ 56    6     VCC                  IO             -
+ 57    6     IO_R1_6,GCLKIOR_4
+ 58    6     VCCIO6              3.3V BANK5 IO   
+ 59    6     IO_R2_6
+ 60    6     IO_R1N_6             IO             -
+ 61    6     IO_R1P_6
+ 62    6     IO_R3_6              IO             -
+ 63    6     IO_R2N_6
+ 64    6     IO_R2P_6             IO             -
+ 65    6     VCCIO6
+ 66    6     IO_R4_6              IO             -
+ 67    7     IO_T1_7,PROGRAM_B
+ 68    7     IO_T2_7,INIT_N       IO             -
+ 69    7     IO_T3_7,CSO_B
+ 70    7     IO_TE1P_7,D3         IO             -
+
+                                 3.3V BANK5 IO   -
+
+                                  IO             -
+
+                                  IO             -
+
+                                                 -
+
+                                  IO             -
+
+                                 3.3V BANK6 IO   
+
+                                  IO             -
+
+                                  IO             -
+
+                                  IO             -
+
+                                  IO             -
+
+                                  IO             -
+
+                                  IO             -
+
+                                 3.3V BANK6 IO   
+
+                                  IO             -
+
+                                 / IO            
+
+                                  IO             
+
+                                 FLASH / IO      
+
+                                  IO             -
+
+DS301_2.7.8  www.anlogic.com                        13
+2025.12
+                                               SALEAGLE�4S20  FPGA 
+
+         BANK1  EG4S20NG88                                   
+
+71           7  IO_TE1N_7,D4                    IO           -
+
+72           7  IO_T4_7,D7                      IO           -
+
+73           7  VCCIO7                         BANK7 IO      
+
+74           7  IO_TE2N_7,D6                    IO           -
+
+75           7  IO_T5_7,GCLKIOT_7               IO           -
+
+76           7  IO_TE2P_7,D5                    IO           -
+
+77           7  IO_TE3N_7,GCLKIOT_4             IO           -
+
+78           7  IO_TE3P_7,GCLKIOT_5             IO           -
+
+79           7  IO_T6_7,GCLKIOB_0               IO           -
+
+80           8  IO_T1_8,D0_DIN_MISO            FLASH IO/ IO  
+
+81           8  IO_T2_8,MOSI_CSI_B             FLASH IO/ IO  
+
+82           8  IO_T3_8,CCLK                   FLASH / IO    
+
+83           8  IO_T4_8,M0                     / IO          
+
+84           8  IO_T5_8,M1                     / IO          
+
+85           8  VCCIO8                         BANK8 IO      
+
+86           8  IO_TE1P_8,D1                    IO           -
+
+87           8  IO_TE1N_8,D2                    IO           -
+
+88           -  VCCAUX                         3.3V          
+
+    89       -  GND_EPAD                        PAD          
+
+
+EG4S20NG88  BANK1BANK2BANK3BANK4BANK5BANK6  BANK7  3.3V IO 
+BANK8  1.2V1.5V1.8V2.5V  3.3V IO 
+
+EG4A20NG88  EG4S20NG88 EG4A20NG88  BANK3BANK4  BANK7  3.3V
+IO  BANK  1.2V1.5V1.8V2.5V  3.3V IO 
+
+DS301_2.7.8                   www.anlogic.com                   14
+
+2025.12
+                                                        SALEAGLE�4S20  FPGA 
+
+EG4S20BG256 FPGA 
+
+         BANK                                     BANK          
+C12                               C5
+C14      0 IO_B1_0, TDI           E7              0 IO_BE21P_0
+ C9                               F7
+B10      0 IO_B2_0, TCK           F6              0 IO_BE22N_0
+ A9                               E6
+A10      0 IO_BE10N_GCLKIOB_4_0   A4              0 IO_BE22P_0
+ E8                               A3
+ D8      0 IO_BE10P_GCLKIOB_5_0   D6              0 IO_BE23N_0
+C15                               D5
+C16      0 IO_BE11N_GCLKIOB_6_0   B5              0 IO_BE23P_0
+A14                               C4
+B14      0 IO_BE11P_GCLKIOB_7_0  E12              0 IO_BE24N_0
+B15                              F12
+B16      0 IO_BE12N_GCLKIOB_2_0  H11              0 IO_BE24P_0
+ B8                              F10
+ C8      0 IO_BE12P_GCLKIOB_3_0  D12              0 IO_BE25N_0
+A12                              D11
+A13      0 IO_BE13N_0            E10              0 IO_BE25P_0
+ A7                              E11
+ A8      0 IO_BE13P_0            C13              0 IO_BE26N_0
+ C7                              E13
+ C6      0 IO_BE14N_0            C10              0 IO_BE26P_0,HSWAPEN
+F16                              B12
+E16      0 IO_BE14P_0            A11              0 IO_BE2N_0
+ A6                              C11
+ A5      0 IO_BE15N_0             D9              0 IO_BE2P_0
+ B6                               F9
+         0 IO_BE15P_0                             0 IO_BE3N_0
+
+         0 IO_BE16N_0                             0 IO_BE3P_0
+
+         0 IO_BE16P_0                             0 IO_BE4N_0
+
+         0 IO_BE17N_0                             0 IO_BE4P_0
+
+         0 IO_BE17P_0                             0 IO_BE5N_0
+
+         0 IO_BE18N_0                             0 IO_BE5P_0
+
+         0 IO_BE18P_0                             0 IO_BE6N_0
+
+         0 IO_BE19N_0                             0 IO_BE6P_0
+
+         0 IO_BE19P_0                             0 IO_BE7N_0
+
+         0 IO_BE1N_0                              0 IO_BE7P_0
+
+         0 IO_BE1P_0                              0 IO_BE8N_0
+
+         0 IO_BE20N_0                             0 IO_BE8P_0
+
+         0 IO_BE20P_0                             0 IO_BE9N_GCLKIOB_0_0
+
+         0 IO_BE21N_0                             0 IO_BE9P_GCLKIOB_1_0
+
+DS301_2.7.8                      www.anlogic.com                         15
+
+2025.12
+                                                     SALEAGLE�4S20  FPGA 
+
+         BANK                                  BANK           
+K14                           J14
+N16      1 IO_L1_GCLKIOL_4_1  M11              1 IO_L2_1
+N14                           L12
+G14      1 IO_L10N_1          H14              1 IO_L2N_1
+H15                           P14
+F14      1 IO_L10P_1          P13              1 IO_L2P_1
+F13                           E14
+G11      1 IO_L11N_1          J11              1 IO_L3_1
+G12                           K11
+M16      1 IO_L11P_1          A15              1 IO_L3N_1
+L16                           M13
+K16      1 IO_L12N_1          L13              1 IO_L3P_1,DONE
+J16                           M14
+D16      1 IO_L12P_1          L14              1 IO_L4_1,TDO
+D14                           M15
+E15      1 IO_L13N_1          K15              1 IO_L4N_1
+F15                           J12
+H16      1 IO_L13P_1          K12              1 IO_L4P_1
+G16                           J13
+P15      1 IO_L14N_1          H13              1 IO_L5_1,TMS
+P16
+         1 IO_L14P_1                           1 IO_L5N_1
+
+         1 IO_L15N_1                           1 IO_L5P_1
+
+         1 IO_L15P_1                           1 IO_L6N_1
+
+         1 IO_L16N_1                           1 IO_L6P_1
+
+         1 IO_L16P_1                           1 IO_L7N_1
+
+         1 IO_L17N_1                           1 IO_L7P_1
+
+         1 IO_L17P_1                           1 IO_L8N_GCLKIOL_2_1
+
+         1 IO_L18N_1                           1 IO_L8P_GCLKIOL_3_1
+
+         1 IO_L18P_1                           1 IO_L9N_1
+
+         1 IO_L1N_1                            1 IO_L9P_1
+
+         1 IO_L1P_1
+
+DS301_2.7.8                   www.anlogic.com                        16
+
+2025.12
+                                                        SALEAGLE�4S20  FPGA 
+
+ BANK                                             BANK         
+                                 P12
+T2       2 IO_T1_2,PROGRAM_B     N12              2 IO_TE18N_2,D2,ADC_CH_6
+                                 R16
+R3       2 IO_T2_2,INIT_B        M12              2 IO_TE18P_2,D1,ADC_CH_5
+                                  T4
+T3       2 IO_T3_2,CSO_B          P6              2 IO_TE19N_2,ADC_CH_7
+                                  T6
+P10 2 IO_T4_2,D0_DIN_MISO         T5              2 IO_TE19P_2,ADC_CH_4
+                                  P5
+T10 2 IO_T5_2,MOSI_CSI_B          N5              2 IO_TE1N_2
+                                  N6
+T11 2 IO_T6_2,M0                  M6              2 IO_TE1P_2
+                                  M7
+R11 2 IO_T7_2,CCLK               T12              2 IO_TE2N_2
+                                  P8
+L10 2 IO_T8_2,ADC_CH_2            R5              2 IO_TE2P_2
+                                  N8
+N11 2 IO_T9_2,M1,ADC_CH_0         T9              2 IO_TE3N_2,D4
+                                  P9
+M9       2 IO_TE10N_GCLKIOT_6_2   R9              2 IO_TE3P_2,D3
+                                  L7
+P7       2 IO_TE10P_GCLKIOT_7_2   L8              2 IO_TE4N_2
+
+T7       2 IO_TE11N_GCLKIOT_4_2                   2 IO_TE4P_2
+
+R7       2 IO_TE11P_GCLKIOT_5_2                   2 IO_TE5N_2
+
+T8       2 IO_TE12N_GCLKIOT_0_2                   2 IO_TE5P_2
+
+N9       2 IO_TE12P_GCLKIOT_1_2                   2 IO_TE6N_2
+
+T13 2 IO_TE13N_GCLKIOT_2_2                        2 IO_TE6P_2,D7
+
+T14 2 IO_TE13P_GCLKIOT_3_2                        2 IO_TE7N_2
+
+T15 2 IO_TE15N_2                                  2 IO_TE7P_2
+
+R15 2 IO_TE15P_2                                  2 IO_TE8N_2
+
+R12 2 IO_TE16N_2                                  2 IO_TE8P_2
+
+R14 2 IO_TE16P_2                                  2 IO_TE9N_2,D6
+
+P11 2 IO_TE17N_2,ADC_CH_3                         2 IO_TE9P_2,D5
+
+M10 2 IO_TE17P_2,ADC_CH_1
+
+DS301_2.7.8                      www.anlogic.com                            17
+
+2025.12
+                                                       SALEAGLE�4S20  FPGA 
+
+         BANK                                    BANK         
+ B1                              K6
+ G3      3 IO_R1_3               N3              3 IO_R21P_3
+ G1                              M4
+ H5      3 IO_R10N_3             N4              3 IO_R22N_3
+ H1                              P4
+ J1      3 IO_R10P_3             M1              3 IO_R22P_3
+ K1                              N1
+ L1      3 IO_R11N_3             E4              3 IO_R23N_3
+ H2                              E3
+ H3      3 IO_R11P_3             L4              3 IO_R23P_3
+ H4                              F4
+ J4      3 IO_R12N_3             F5              3 IO_R24N_3
+ J3                              L5
+ K2      3 IO_R12P_3             A2              3 IO_R24P_3
+ K3                              B2
+ J6      3 IO_R13N_GCLKIOR_6_3   M5              3 IO_R2N_3
+ K5                              C2
+ R1      3 IO_R13P_GCLKIOR_7_3   C3              3 IO_R2P_3
+ P1                              E2
+ P2      3 IO_R14N_GCLKIOR_0_3   C1              3 IO_R3_3
+ R2                              D1
+ D3      3 IO_R14P_GCLKIOR_1_3   E1              3 IO_R3N_3
+ B3                              F2
+ F3      3 IO_R15N_GCLKIOR_4_3   F1              3 IO_R3P_3
+ M2                              G6
+ L3      3 IO_R15P_GCLKIOR_5_3   G5              3 IO_R4_3
+ M3
+         3 IO_R16N_3                             3 IO_R4N_3
+
+         3 IO_R16P_3                             3 IO_R4P_3
+
+         3 IO_R17N_3                             3 IO_R5_3
+
+         3 IO_R17P_3                             3 IO_R5N_3
+
+         3 IO_R18N_3                             3 IO_R5P_3
+
+         3 IO_R18P_3                             3 IO_R6N_3
+
+         3 IO_R19N_3                             3 IO_R6P_3
+
+         3 IO_R19P_3                             3 IO_R7N_3
+
+         3 IO_R1N_3                              3 IO_R7P_3
+
+         3 IO_R1P_3                              3 IO_R8N_3
+
+         3 IO_R2_3                               3 IO_R8P_3
+
+         3 IO_R20N_3                             3 IO_R9N_3
+
+         3 IO_R20P_3                             3 IO_R9P_3
+
+         3 IO_R21N_3
+
+DS301_2.7.8                     www.anlogic.com                 18
+
+2025.12
+                                                SALEAGLE�4S20  FPGA 
+
+         BANK                             BANK      
+B13        - VCCO_0      A16
+ B4        - VCCO_0       P3              - GND_
+ B9        - VCCO_0      R10
+D10        - VCCO_0       R6              - GND_
+ D7        - VCCO_0       M8
+D15        - VCCO_1      N13              - GND_
+G13        - VCCO_1       T1
+J15        - VCCO_1      T16              - GND
+K13        - VCCO_1      B11
+N15        - VCCO_1       B7              - GND
+N10        - VCCO_2      D13
+ N7        - VCCO_2       D4              - GND
+ R4        - VCCO_2       E9
+ R8        - VCCO_2      G15              - GND
+ D2        - VCCO_3       G2
+ G4        - VCCO_3       E5              - GND
+ J2        - VCCO_3      F11
+ K4        - VCCO_3       F8              - GND
+ N2        - VCCO_3      G10
+R13        - ADC_VDDA     H6              - GND
+L11        - ADC_VREF    J10
+ A1        - GND          L6              - GND
+ G8        - GND          L9
+H12        - GND          G7              - GND
+ H7        - GND          G9
+ H9        - GND         H10              - GND
+ J5        - GND          H8
+ J8        - GND          J7              - GND
+ K7        - GND          J9
+ K9        - GND         K10              - GND
+L15        - GND          K8
+ L2        - GND                          - VCCAUX
+
+                                          - VCCAUX
+
+                                          - VCCAUX
+
+                                          - VCCAUX
+
+                                          - VCCAUX
+
+                                          - VCCAUX
+
+                                          - VCCAUX
+
+                                          - VCCAUX
+
+                                          - VCCINT
+
+                                          - VCCINT
+
+                                          - VCCINT
+
+                                          - VCCINT
+
+                                          - VCCINT
+
+                                          - VCCINT
+
+                                          - VCCINT
+
+                                          - VCCINT
+
+
+       BANK1  BANK3VCCIO  SDR SDRAM  VCCO1VCCO3  3.3V 
+      VCCIO3VCCAUXVCCIO1 
+      EG4S20BG256B  EG4S20BG256 
+
+DS301_2.7.8              www.anlogic.com              19
+
+2025.12
+                                                SALEAGLE�4S20  FPGA 
+
+    EG4S20CG324 FPGA 
+
+ BANK                           BANK                          
+
+E11 0 IO_BE10N_0               B4               0 IO_BE23P_0
+
+E10 0 IO_BE10P_0               A3               0 IO_BE24N_0,GPLL3_OUTN
+
+A12 0 IO_BE11N_0,GCLKIOB_0     B3               0 IO_BE24P_0,GPLL3_OUTP
+
+B12 0 IO_BE11P_0,GCLKIOB_1     A2               0 IO_BE25N_0
+
+C11 0 IO_BE12N_0,GCLKIOB_4     A1               0 IO_BE25P_0
+
+B11 0 IO_BE12P_0,GCLKIOB_5     B1               0 IO_BE26N_0
+
+A10 0 IO_BE13N_0,GCLKIOB_6     B2               0 IO_BE26P_0
+
+A11 0 IO_BE13P_0,GCLKIOB_7     C2               0 IO_BE27N_0
+
+B10 0 IO_BE14N_0,GCLKIOB_2     C1               0 IO_BE27P_0
+
+C10 0 IO_BE14P_0,GCLKIOB_3     D2               0 IO_BE28N_0,DPCLKIO_4
+
+D9       0 IO_BE15N_0,VREF0_1  D3               0 IO_BE28P_0
+
+E9       0 IO_BE15P_0          D4               0 IO_BE29N_0,VREF0_0
+
+B9       0 IO_BE16N_0          D5               0 IO_BE29P_0,HSWAPEN
+
+A9       0 IO_BE16P_0          A17 0 IO_BE2N_0,TCK
+
+C8       0 IO_BE17N_0          B17 0 IO_BE2P_0,TDI
+
+C9       0 IO_BE17P_0          A16 0 IO_BE3N_0
+
+B8       0 IO_BE18N_0          B16 0 IO_BE3P_0,DPCLKIO_3
+
+A8       0 IO_BE18P_0          D14 0 IO_BE4N_0
+
+D7       0 IO_BE19N_0          C14 0 IO_BE4P_0
+
+D8       0 IO_BE19P_0          B15 0 IO_BE5N_0,GPLL0_OUTN
+
+B18 0 IO_BE1N_0,GPLL0_CLKIN1   B14 0 IO_BE5P_0,GPLL0_OUTP
+
+A18 0 IO_BE1P_0,GPLL0_CLKIN0   A14 0 IO_BE6N_0
+
+B7       0 IO_BE20N_0          A15 0 IO_BE6P_0
+
+C7       0 IO_BE20P_0          A13 0 IO_BE7N_0
+
+A6       0 IO_BE21N_0          B13 0 IO_BE7P_0
+
+B6       0 IO_BE21P_0          D12 0 IO_BE8N_0,VREF0_2
+
+A5       0 IO_BE22N_0          D11 0 IO_BE8P_0
+
+A4       0 IO_BE22P_0          C12 0 IO_BE9N_0
+
+B5       0 IO_BE23N_0          C13 0 IO_BE9P_0
+
+DS301_2.7.8                    www.anlogic.com                           20
+
+2025.12
+                                                       SALEAGLE�4S20  FPGA 
+
+         BANK                                    BANK        
+L15                             L17
+K17      1 IO_L1_1              C16              1 IO_L2_1
+K18                             C17
+J17      1 IO_L10N_1            T17              1 IO_L20N_1,TMS
+J16                             T18
+J14      1 IO_L10P_1            L18              1 IO_L20P_1,TDO
+J18                             B17
+H16      1 IO_L11N_1            R17              1 IO_L2N_1
+H17                             H14
+F17      1 IO_L11P_1            P16              1 IO_L2P_1
+G17                             N16
+F16      1 IO_L12N_1            G18              1 IO_L3_1
+G16                             L14
+E18      1 IO_L12P_1            M14              1 IO_L3N_1
+F18                             L16
+E17      1 IO_L13N_1            M16              1 IO_L3P_1,DONE
+E16                             R18
+D15      1 IO_L13P_1,DPCLKIO_2  P18              1 IO_L4_1
+D16                             M18
+C18      1 IO_L14N_1            N18              1 IO_L4N_1
+D18                             K15
+R16      1 IO_L14P_1            K14              1 IO_L4P_1
+R15
+         1 IO_L15N_1                             1 IO_L5_1
+
+         1 IO_L15P_1                             1 IO_L5N_1
+
+         1 IO_L16N_1,VREF1_0                     1 IO_L5P_1
+
+         1 IO_L16P_1                             1 IO_L6N_1
+
+         1 IO_L17N_1                             1 IO_L6P_1
+
+         1 IO_L17P_1                             1 IO_L7N_1
+
+         1 IO_L18N_1                             1 IO_L7P_1
+
+         1 IO_L18P_1                             1 IO_L8N_1,GCLKIOL_2
+
+         1 IO_L19N_1                             1 IO_L8P_1,GCLKIOL_3
+
+         1 IO_L19P_1                             1 IO_L9N_1,GCLKIOL_4
+
+         1 IO_L1N_1                              1 IO_L9P_1,GCLKIOL_5
+
+         1 IO_L1P_1
+
+DS301_2.7.8                     www.anlogic.com                        21
+
+2025.12
+                                               SALEAGLE�4S20  FPGA 
+
+ BANK                          BANK            
+
+V7 2 IO_TE10N_2,VREF2_1       U15 2 IO_TE22P_2,ADC_CH_1
+
+V6 2 IO_TE10P_2,D7            V16 2 IO_TE23N_2,VREF2_0,ADC_CH_2
+
+R9 2 IO_TE11N_2               U16 2 IO_TE23P_2,M1,ADC_CH_0
+
+T9 2 IO_TE11P_2               U17 2 IO_TE24N_2,D2,ADC_CH_6
+
+V9 2 IO_TE12N_2               V17 2 IO_TE24P_2,D1,ADC_CH_5
+
+V8 2 IO_TE12P_2               U18 2 IO_TE25N_2,GPLL1_CLKIN1,ADC_CH_7
+
+V10 2 IO_TE13N_2,D6           V18 2 IO_TE25P_2,GPLL1_CLKIN0,ADC_CH_4
+
+U10 2 IO_TE13P_2,D5           V2 2 IO_TE2N_2,GPLL2_OUTN
+
+U11 2 IO_TE14N_2,GCLKIOT_6    U2 2 IO_TE2P_2,GPLL2_OUTP
+
+V11 2 IO_TE14P_2,GCLKIOT_7    V3 2 IO_TE3N_2,CSO_B
+
+R10 2 IO_TE15N_2,GCLKIOT_4    U3 2 IO_TE3P_2,INIT_B
+
+T10 2 IO_TE15P_2,GCLKIOT_5    T5 2 IO_TE4N_2
+
+U12 2 IO_TE16N_2,GCLKIOT_0    T6 2 IO_TE4P_2,DPCLKIO_7
+
+V12 2 IO_TE16P_2,GCLKIOT_1    U5 2 IO_TE5N_2
+
+T11 2 IO_TE17N_2,GCLKIOT_2    U4 2 IO_TE5P_2
+
+R11 2 IO_TE17P_2,GCLKIOT_3    R8 2 IO_TE6N_2,D4
+
+U13 2 IO_TE18N_2,MOSI_CSI_B   R7 2 IO_TE6P_2,D3
+
+V13 2 IO_TE18P_2,D0_DIN_MISO  V5 2 IO_TE7N_2
+
+T12 2 IO_TE19N_2              V4 2 IO_TE7P_2
+
+R12 2 IO_TE19P_2              U7 2 IO_TE8N_2
+
+V1 2 IO_TE1N_2,PROGRAM_B      U6 2 IO_TE8P_2
+
+U1 2 IO_TE1P_2                T7 2 IO_TE9N_2
+
+V15 2 IO_TE20N_2              T8 2 IO_TE9P_2
+
+V14 2 IO_TE20P_2              M12 2 ADC_VDDA
+
+T14 2 IO_TE21N_2,M0           N12 2 ADC_VDDD
+
+T13 2 IO_TE21P_2,CCLK         R13 2 ADC_VREF
+
+T15 2 IO_TE22N_2,ADC_CH_3     P11 2 ADC_VSSA
+
+DS301_2.7.8                   www.anlogic.com                    22
+
+2025.12
+                                                         SALEAGLE�4S20  FPGA 
+
+ BANK                                              BANK         
+                                   M5
+G5       3 IO_R1_3                 R1              3 IO_R23P_3
+                                   P1
+H4       3 IO_R10N_3               P3              3 IO_R24N_3
+                                   P2
+H3       3 IO_R10P_3               T1              3 IO_R24P_3
+                                   R2
+H1       3 IO_R11N_3               N6              3 IO_R25N_3
+                                   N5
+J1       3 IO_R11P_3               T3              3 IO_R25P_3
+                                   T2
+J6       3 IO_R12N_3               R5              3 IO_R26N_3
+                                   R4
+J5       3 IO_R12P_3               D1              3 IO_R26P_3
+                                   E1
+J4       3 IO_R13N_3,GCLKIOR_6     P5              3 IO_R27N_3,DPCLKIO_6
+                                   P6
+J3       3 IO_R13P_3,GCLKIOR_7     E2              3 IO_R27P_3
+                                   E3
+K1       3 IO_R14N_3,GCLKIOR_0     F6              3 IO_R28N_3
+                                   F5
+K2       3 IO_R14P_3,GCLKIOR_1     G4              3 IO_R28P_3
+                                   F4
+K3       3 IO_R15N_3,GCLKIOR_4     F2              3 IO_R29N_3
+                                   F3
+K4       3 IO_R15P_3,GCLKIOR_5     F1              3 IO_R29P_3
+                                   G1
+K5       3 IO_R16N_3               G3              3 IO_R2N_3
+                                   G2
+K6       3 IO_R16P_3               H5              3 IO_R2P_3
+                                   H6
+L1       3 IO_R17N_3                               3 IO_R30N_3,GPLL2_CLKIN1
+
+L2       3 IO_R17P_3                               3 IO_R30P_3,GPLL2_CLKIN0
+
+M1       3 IO_R18N_3                               3 IO_R3N_3
+
+M2       3 IO_R18P_3                               3 IO_R3P_3
+
+L5       3 IO_R19N_3                               3 IO_R4N_3
+
+L6       3 IO_R19P_3                               3 IO_R4P_3
+
+E5       3 IO_R1N_3,GPLL3_CLKIN1                   3 IO_R5N_3
+
+E6       3 IO_R1P_3,GPLL3_CLKIN0                   3 IO_R5P_3
+
+G6       3 IO_R2_3                                 3 IO_R6N_3
+
+L4       3 IO_R20N_3                               3 IO_R6P_3
+
+M4       3 IO_R20P_3                               3 IO_R7N_3
+
+N1       3 IO_R21N_3                               3 IO_R7P_3
+
+N2       3 IO_R21P_3                               3 IO_R8N_3
+
+N4       3 IO_R22N_3,VREF3_0                       3 IO_R8P_3
+
+N3       3 IO_R22P_3                               3 IO_R9N_3
+
+M6       3 IO_R23N_3                               3 IO_R9P_3
+
+DS301_2.7.8                       www.anlogic.com                            23
+
+2025.12
+                                          SALEAGLE�4S20  FPGA 
+
+     BANK                           BANK         
+ A7    - GND        T4
+E14    - GND       T16              - GND
+E15    - GND        U8
+F14    - GND        U9              - GND
+G14    - GND       U14
+G15    - GND        C6              - GND
+ H2    - GND       C15
+H15    - GND        D6              - GND
+H18    - GND       D10
+ J2    - GND       D17              - GND
+ J9    - GND       D13
+ C3    - GND       E13              - GND
+J10         GND    N13
+J13    - GND       N14              - GND
+J15    - GND        M7
+ K9    - GND        N7              - GND
+K10    - GND        E7
+K16    - GND        F7              - GND
+ L7    - GND       F12
+ L9    - GND       L11              - GND
+L10    - GND        N9
+ M9    - GND       N10              - GND_PLLA0
+ C4    - GND        G8
+M10    - GND        G9              - GND_PLLA0
+M11    - GND       G11
+M17    - GND        H9              - GND_PLLA1
+N11    - GND       H10
+N15    - GND       H11              - GND_PLLA1
+N17    - GND        J8
+ P4    - GND       J11              - GND_PLLA2
+P14    - GND       F13
+P15    - GND        G7              - GND_PLLA2
+ R3    - GND       G10
+ C5    - GND       K11              - GND_PLLA3
+ R6    - GND        M3
+R14    - GND       M13              - GND_PLLA3
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCC
+
+                                    - VCCAUX
+
+                                    - VCCAUX
+
+                                    - VCCAUX
+
+                                    - VCCAUX
+
+                                    - VCCAUX
+
+                                    - VCCAUX
+
+DS301_2.7.8        www.anlogic.com                 24
+2025.12
+                                               SALEAGLE�4S20  FPGA 
+
+         BANK                            BANK       
+M15        - VCCAUX     L12
+ N8        - VCCAUX      P7              - VCCIO_1
+ E8        - VCCIO_0     P8
+E12        - VCCIO_0     P9              - VCCIO_2
+ F8        - VCCIO_0    P10
+ F9        - VCCIO_0    P12              - VCCIO_2
+F10        - VCCIO_0    P13
+F11        - VCCIO_0     E4              - VCCIO_2
+F15        - VCCIO_1     H7
+L13        - VCCIO_1     H8              - VCCIO_2
+G12        - VCCIO_1     J7
+G13        - VCCIO_1     K7              - VCCIO_2
+H12        - VCCIO_1     K8
+H13        - VCCIO_1     L3              - VCCIO_2
+J12        - VCCIO_1     L8
+K12        - VCCIO_1     M8              - VCCIO_3
+K13        - VCCIO_1
+                                         - VCCIO_3
+
+                                         - VCCIO_3
+
+                                         - VCCIO_3
+
+                                         - VCCIO_3
+
+                                         - VCCIO_3
+
+                                         - VCCIO_3
+
+                                         - VCCIO_3
+
+                                         - VCCIO_3
+
+
+       BANK1  BANK3VCCIO  SDR SDRAM  VCCO1VCCO3  3.3V 
+      VCCIO3VCCAUXVCCIO1  GND  GND_PLLx 
+      
+
+DS301_2.7.8             www.anlogic.com               25
+
+2025.12
+                              SALEAGLE�4S20  FPGA 
+
+EG4S20NG88 
+
+DS301_2.7.8  www.anlogic.com  26
+
+2025.12
+                                  SALEAGLE�4S20  FPGA 
+
+EG4S20BG256 
+
+
+      EG4S20BG256B  EG4S20BG256 
+
+DS301_2.7.8   www.anlogic.com     27
+
+2025.12
+                               SALEAGLE�4S20  FPGA 
+
+EG4S20CG324 
+
+DS301_2.7.8   www.anlogic.com  28
+
+2025.12
+                                     SALEAGLE�4S20  FPGA 
+
+7 
+
+                     7-1 
+
+                                              
+          EG4    S        20           BG256       I
+
+ 
+
+ EAGLE 
+
+ 
+
+ S  SDR SDRAM
+
+ 
+
+ 20 20K 
+
+ <><#>
+
+ BG256 17mm�17mm1.0mm pitch
+
+ NG88 10mm�10mm0.4 pitch
+
+ CG324 15mm�15mm0.8mm pitch
+
+ # 256  256 88  88 324  324 
+
+ 
+
+ C TJ = 0  85 
+
+ I TJ = -40  100 
+
+
+
+ GRADE "I7""I8""I" I 
+
+ GRADE "C7""C" C 
+
+ SDRAM 
+
+ B  SDRAM 
+
+DS301_2.7.8         www.anlogic.com                   29
+
+2025.12
+                                                              SALEAGLE�4S20  FPGA 
+          EG4 FPGA
+                    EG4 S 20 BG256 C
+                
+S SDR SDRAM                                                          
+                                                                     C TJ = 0  85 
+                                                                     I TJ = -40  100 
+  20 20K
+                                                                     SDRAM
+                                                                     B SDRAM
+
+                                                                    
+                                                                    BG256 17mm�17mm1.0mm pitch
+                                                                    NG88 10mm�10mm0.4mm pitch
+                                                                    CG324 15mm�15mm0.8mm pitch
+
+DS301_2.7.8         www.anlogic.com  30
+
+2025.12
+                                     SALEAGLE�4S20  FPGA 
+
+
+
+                                                             
+ 2019/03/13   1.7   
+ 2019/03/29   1.8    EG4S20  SDRAM 
+ 2018/04/10   1.9   
+ 2019/04/28   2.0   ERAMERAM  ERAM
+ 2019/06/04   2.1    LUT4  LUT4/LUT5 
+ 2019/09/18   2.2    1-1-1 1-1-2  EG4S20CG324 
+ 2019/09/23   2.3    5.8  EG4S20CG324 
+ 2019/12/30   2.4    1-1-1  EG4  BANK 
+ 2020/02/20   2.5    EG4S20NG88  78 "IO_T2P_7GCLKIOT_5"
+ 2020/03/02   2.6   "IO_TE2P_7GCLKIOT_5
+ 2021/03/03   2.7   
+ 2021/06/15  2.7.1   EG4S20CG324 BANK0 IO 
+ 2022/03/17  2.7.2   EG4S20NG88 
+                     IO
+ 2023/04/02  2.7.3  
+                     5-1-1 
+ 2023/05/10  2.7.4   GND GND  GND_EPAD;
+                    1.  EG4S20BG256B 
+ 2024/03/12  2.7.5  2.  4  SDRAM IP 
+                    3.  MSEL  M  CSN  CSI_B
+ 2024/11/15  2.7.6  4.  5  EG4A 
+
+DS301_2.7.8                5-3-1  EG4S20  1  2
+2025.12             5.  5-3-2 EG4S20 
+                     7  I7 -40-110
+                    1. DS300_Eagle_Datasheet
+                    2.  1.1 
+                    3.  1-2 EG4S20BG256 
+                    4.  6-1  GND_EPAD 
+                    5.  6.3 EG4S20NG88 
+                    6.  6.6 EG4S20NG88 
+                    1.  1.1 SALEAGLE�4S20 "" CG324 
+
+                          FBGA256 
+                    2.  5-1 EG4S20 
+
+                    www.anlogic.com  31
+                                                                    SALEAGLE�4S20  FPGA 
+                                                             
+2025/09/25   2.7.7  3.  5.3 FPGA I/O  IO 
+2025/12/30   2.7.8        
+                    4.  5-2 EG4S20 Pin Termination  DOUT 
+                    5.  6-1 
+                    6.  7 """""SDRAM "
+                          
+                    1.  1.1 SALEAGLE�4 EG4S20 
+                          
+                    2.  1-2 EG4S20 FPGA  IO  1 IO 
+                          
+                    3.  6-1  DONE INIT_B 
+                    4.  7  1 2
+                          
+                    1.  6.5 EG4S20CG324 FPGA 
+                    2.  6.7 EG4S20BG256 
+
+DS301_2.7.8         www.anlogic.com  32
+
+2025.12
+                              SALEAGLE�4S20  FPGA 
+
+�2025 
+
+
+
+
+
+
+
+
+
+
+
+
+https://www.anlogic.com
+
+DS301_2.7.8  www.anlogic.com  33
+
+2025.12
+

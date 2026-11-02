@@ -1,20 +1,20 @@
 //=============================================================================
 // anim_rom.v —— 动态插图数据（由 tools/make_anim.py 生成，不要手改）
 //
-//   8 帧 x 128x96，4bpp（每字节 2 像素，高半字节在前）
-//   总计 49152 字节 = 384 Kbit
+//   4 帧 x 128x96，4bpp（每字节 2 像素，高半字节在前）
+//   总计 24576 字节 = 192 Kbit
 //=============================================================================
 `timescale 1ns/1ps
 module anim_rom (
     input  wire        clk,
-    input  wire [16:0] addr,      // 0 .. 49151
+    input  wire [14:0] addr,      // 0 .. 24575
     output reg  [7:0]  data,
     input  wire [3:0]  pal_idx,
     output reg  [15:0] pal_rgb
 );
-    reg [7:0] mem [0:49151];
+    reg [7:0] mem [0:24575];
 
-    initial $readmemh("rtl/gen/anim.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/anim.hex", mem);
 
     always @(posedge clk) data <= mem[addr];
 

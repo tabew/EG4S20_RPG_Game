@@ -15,7 +15,7 @@ make_anim.py —— 生成游戏内的动态插图（多帧 4bpp 位图 + 16 色
 import math, os
 
 W, H = 128, 96
-FRAMES = 8
+FRAMES = 4
 
 # 16 色调色板（RGB565）
 PALETTE = [
@@ -191,14 +191,14 @@ def main():
 `timescale 1ns/1ps
 module anim_rom (
     input  wire        clk,
-    input  wire [16:0] addr,      // 0 .. {last}
+    input  wire [{abits}:0] addr,      // 0 .. {last}
     output reg  [7:0]  data,
     input  wire [3:0]  pal_idx,
     output reg  [15:0] pal_rgb
 );
     reg [7:0] mem [0:{last}];
 
-    initial $readmemh("rtl/gen/anim.hex", mem);
+    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/anim.hex", mem);
 
     always @(posedge clk) data <= mem[addr];
 
@@ -212,7 +212,7 @@ module anim_rom (
 
 endmodule
 """.format(nf=FRAMES, w=W, h=H, n=len(data), kb=len(data) * 8 / 1024.0,
-           last=len(data) - 1, pal=pal_init)
+           last=len(data) - 1, abits=(len(data) - 1).bit_length() - 1, pal=pal_init)
     with open(os.path.join(gen, "anim_rom.v"), "w", encoding="utf-8", newline="\n") as fp:
         fp.write(v)
 

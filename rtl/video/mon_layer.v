@@ -16,6 +16,8 @@ module mon_layer (
     input  wire        rst_n,
     input  wire [4:0]  mon_id,      // 0..24
     input  wire [3:0]  fade,        // 0=全黑 .. 8=原色
+    input  wire [1:0]  rotation,    // clockwise quarter turns; open/X/Z -> 0
+    input  wire        mirror,      // horizontal reflection AFTER rotation
     input  wire [11:0] x,           // 当前像素坐标(与 rpg_video 同一拍)
     input  wire [11:0] y,
     output wire        in_win,      // 该像素在立绘窗口内
@@ -39,21 +41,41 @@ module mon_layer (
     // 结果只有 12 位, 乘积会被截断 —— 实测图像直接跑飞。
     wire [31:0] sxm = ax * 32'd171;                    // ax/3 = (ax*171)>>9
     wire [31:0] sym = ay * 32'd171;
-    wire [11:0] sx = sxm[20:9];                        // 0..47
-    wire [11:0] sy = sym[20:9];
+    // Clamp blanking reads to the first byte of this monster. The transform
+    // itself is only six-bit subtracts/muxes; retain the existing /3 scaler.
+    wire [5:0] u = in_win0 ? sxm[14:9] : 6'd0;
+    wire [5:0] v = in_win0 ? sym[14:9] : 6'd0;
+    reg [1:0] rotation_safe;
+    reg mirror_safe;
+    always @* begin
+        case (rotation)
+            2'd0: rotation_safe = 2'd0;
+            2'd1: rotation_safe = 2'd1;
+            2'd2: rotation_safe = 2'd2;
+            2'd3: rotation_safe = 2'd3;
+            default: rotation_safe = 2'd0;
+        endcase
+        case (mirror)
+            1'b1: mirror_safe = 1'b1;
+            default: mirror_safe = 1'b0;
+        endcase
+    end
+    wire [5:0] unmirror_u = mirror_safe ? 6'd47 - u : u;
+    reg [5:0] sx, sy;
+    always @* begin
+        // Inverse lookup: undo display mirror, then undo clockwise rotation.
+        case (rotation_safe)
+            2'd1: begin sx = v; sy = 6'd47 - unmirror_u; end
+            2'd2: begin sx = 6'd47 - unmirror_u; sy = 6'd47 - v; end
+            2'd3: begin sx = 6'd47 - v; sy = unmirror_u; end
+            default: begin sx = unmirror_u; sy = v; end
+        endcase
+    end
     wire [11:0] spix = sy * 12'd48 + sx;               // 0..2303
-
-    wire [14:0] maddr = mon_id * FRM + (spix >> 1);    // 字节地址
+    wire [11:0] byte_offset = in_win0 ? (spix >> 1) : 12'd0;
+    wire [14:0] maddr = mon_id * FRM + byte_offset;     // 字节地址
 
     wire [7:0]  mbyte;
-
-    mon_rom u_mon (
-        .clk   (clk),
-        .addr  (maddr),
-        .data  (mbyte),
-        .paddr (pal_rd_addr),
-        .pal   (pal_q)
-    );
 
     //---------------------------------------------------------
     // 调色板：mon_id 或 fade 变了就重算 16 项
@@ -65,8 +87,19 @@ module mon_layer (
     reg [4:0]  wcnt;      // 写入索引(pal_q 比地址晚一拍)
     reg        pload;
 
-    wire [9:0] pal_rd_addr = {mon_id, pcnt[3:0]};
+    // ★ 声明必须放在 mon_rom 例化之前: 否则 Verilog 会把 pal_rd_addr /
+    //   pal_q 隐式当成 1bit wire, 后面再显式声明就是"重复声明",
+    //   TD / iverilog 严格模式下会直接报错。
+    wire [9:0]  pal_rd_addr = {mon_id, pcnt[3:0]};
     wire [15:0] pal_q;
+
+    mon_rom u_mon (
+        .clk   (clk),
+        .addr  (maddr),
+        .data  (mbyte),
+        .paddr (pal_rd_addr),
+        .pal   (pal_q)
+    );
 
     // 把一个色项按 fade 缩放（fade=0 -> 全黑, 8 -> 原色）
     function [15:0] fade_rgb;
@@ -100,7 +133,9 @@ module mon_layer (
             end else begin
                 wcnt <= pcnt;                       // pal_q 对应当前 wcnt 的地址
                 pal_reg[wcnt[3:0]] <= fade_rgb(pal_q, fade);
-                if (pcnt == 5'd15) begin
+                // Drain the synchronous ROM: at pcnt=16 the pending wcnt=15
+                // finally writes color 15. Stopping at 15 left it undefined.
+                if (pcnt == 5'd16) begin
                     pload     <= 1'b0;
                     last_id   <= mon_id;
                     last_fade <= fade;
@@ -114,28 +149,25 @@ module mon_layer (
     //---------------------------------------------------------
     // 像素流水：t1 取字节 -> t2 查色 -> t3 与字符层对齐
     //---------------------------------------------------------
-    reg        win1, win2, win3;
+    reg        win1, win2;
     reg        nib1;
     reg [15:0] rgb2;
-    reg [7:0]  byte1;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            win1 <= 0; win2 <= 0; win3 <= 0;
-            nib1 <= 0; rgb2 <= 0; byte1 <= 0;
+            win1 <= 0; win2 <= 0;
+            nib1 <= 0; rgb2 <= 0;
             rgb  <= 0; valid <= 0;
         end else begin
-            // t0 -> t1
+            // P1: mon_rom registers mbyte from this pixel's address.
             win1  <= in_win0;
             nib1  <= spix[0];
-            byte1 <= mbyte;
-            // t1 -> t2
+            // P2: consume that byte with its matching nibble selector.
             win2  <= win1;
-            rgb2  <= pal_reg[nib1 ? byte1[3:0] : byte1[7:4]];
-            // t2 -> t3
-            win3  <= win2;
+            rgb2  <= pal_reg[nib1 ? mbyte[3:0] : mbyte[7:4]];
+            // P3: RGB and validity align with rpg_video.de3.
             rgb   <= rgb2;
-            valid <= win3;
+            valid <= win2;
         end
     end
 

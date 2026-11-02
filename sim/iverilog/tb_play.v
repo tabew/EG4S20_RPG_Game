@@ -32,18 +32,13 @@ module tb_play;
     reg  [3:0] key = 4'b0000;
 
     wire        we;
-    wire        anim_on;
-    wire [2:0]  anim_frame;
-    wire        mon_on;
-    wire [4:0]  mon_id;
-    wire [3:0]  mon_fade;
     wire [10:0] waddr;
-    wire [16:0] wdata;
+    wire [15:0] wdata;
     wire        hs, vs, de;
     wire [15:0] rgb;
 
     wire [3:0]  o_state;
-    wire [3:0]  o_scene;
+    wire [2:0]  o_scene;
     wire [9:0]  o_hp, o_maxhp;
     wire [11:0] o_gold;
     wire [3:0]  o_lv;
@@ -65,22 +60,12 @@ module tb_play;
         .dbg_lv     (o_lv),
         .dbg_state  (o_state),
         .dbg_pc     (),
-        .anim_on    (anim_on),
-        .anim_frame (anim_frame),
-        .mon_on     (mon_on),
-        .mon_id     (mon_id),
-        .mon_fade   (mon_fade),
         .dbg_ehp    (o_ehp)
     );
 
     rpg_video u_vid (
         .clk   (clk),
         .rst_n (rst_vid_n),
-        .anim_on    (anim_on),
-        .anim_frame (anim_frame),
-        .mon_on     (mon_on),
-        .mon_id     (mon_id),
-        .mon_fade   (mon_fade),
         .we    (we),
         .waddr (waddr),
         .wdata (wdata),
@@ -164,8 +149,8 @@ module tb_play;
                         {fbuf[i][4:0],   3'b000});     // B
             end
             shot = shot + 1;
-            $display("[TB] 存下第 %0d 帧  -> 场景=%0d HP=%0d/%0d 敌#%0d HP=%0d 金=%0d Lv%0d rnd=%b fade=%0d",
-                     shot, o_scene, o_hp, o_maxhp, u_core.enemy_id, o_ehp, o_gold, o_lv, u_core.rnd[1:0], mon_fade);
+            $display("[TB] 存下第 %0d 帧  -> 场景=%0d HP=%0d/%0d 敌HP=%0d 金=%0d Lv%0d",
+                     shot, o_scene, o_hp, o_maxhp, o_ehp, o_gold, o_lv);
         end
     endtask
 
