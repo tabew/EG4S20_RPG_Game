@@ -181,7 +181,7 @@ module tb_media_frame;
   integer cycles=0,last_tick=0,ticks=0,active=0,checks=0;
   reg tick_d=0;
   rpg_video dut(.clk(clk),.rst_n(rst_n),.we(1'b0),.waddr(11'd0),.wdata(17'd0),
-    .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b0),.mon_id(5'd0),.mon_fade(4'd8),
+    .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b0),.mon_id(5'd0),.mon_fade(4'd8),.hit_trig(1'b0),.hit_kind(2'd0),
     .bars(64'h7878787878787878),.gal_on(1'b1),.gal_img(2'd0),.gal_fade(4'd8),
     .tf_valid(1'b1),.tf_err(2'd0),.diag(8'd0),.diag2(8'd0),.dfill(1'b0),
     .tf_rdata(4'd12),.tf_raddr(addr),.hs(hs),.vs(vs),.de(de),.rgb(rgb),.frame_tick(tick),
@@ -407,7 +407,7 @@ module tb_media_fullframe;
   begin pattern={8'(n*37+n/640),8'(n*73+19),8'(n*11+(n/640)*17)};end
  endfunction
  rpg_video dut(.clk(clk),.rst_n(rst_n),.we(1'b0),.waddr(11'd0),.wdata(17'd0),
-  .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b0),.mon_id(5'd0),.mon_fade(4'd8),
+  .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b0),.mon_id(5'd0),.mon_fade(4'd8),.hit_trig(1'b0),.hit_kind(2'd0),
   .bars(64'd0),.gal_on(1'b1),.gal_img(2'd0),.gal_fade(4'd8),.tf_valid(1'b0),
   .tf_err(err),.diag(8'd0),.diag2(8'd0),.dfill(1'b0),.tf_rdata(4'd0),.tf_raddr(addr),
   .hs(hs),.vs(vs),.de(de),.rgb(rgb),.rgb_full(full),.frame_tick(tick),
@@ -453,7 +453,7 @@ module tb_media_fullbars;
  wire [23:0] full;
  integer px,py,checks=0;
  rpg_video dut(.clk(clk),.rst_n(rst_n),.we(1'b0),.waddr(11'd0),.wdata(17'd0),
-  .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b0),.mon_id(5'd0),.mon_fade(4'd8),
+  .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b0),.mon_id(5'd0),.mon_fade(4'd8),.hit_trig(1'b0),.hit_kind(2'd0),
   .bars(64'h7878787878787878),.gal_on(1'b1),.gal_img(2'd0),.gal_fade(4'd8),.tf_valid(1'b0),
   .tf_err(err),.diag(8'd0),.diag2(8'd0),.dfill(1'b0),.tf_rdata(4'd0),.tf_raddr(addr),
   .hs(hs),.vs(vs),.de(de),.rgb(rgb),.rgb_full(full),.frame_tick(tick),
@@ -506,7 +506,7 @@ module tb_media_cea;
   begin pattern={8'(n*37+n/640+17),8'(n*73+19),8'(n*11+(n/640)*17+3)};end
  endfunction
  rpg_video #(.VIDEO_MODE(1)) dut(.clk(clk),.rst_n(rst_n),.we(1'b0),.waddr(11'd0),.wdata(17'd0),
-  .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b0),.mon_id(5'd0),.mon_fade(4'd8),
+  .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b0),.mon_id(5'd0),.mon_fade(4'd8),.hit_trig(1'b0),.hit_kind(2'd0),
   .bars(64'd0),.gal_on(1'b1),.gal_img(2'd0),.gal_fade(4'd8),.tf_valid(1'b0),
   .tf_err(err),.diag(8'd0),.diag2(8'd0),.dfill(1'b0),.tf_rdata(4'd0),.tf_raddr(addr),
   .hs(hs),.vs(vs),.de(de),.rgb(rgb),.rgb_full(full),.frame_tick(tick),

@@ -1,0 +1,17 @@
+{
+  "all_passed": true,
+  "results": [
+    {
+      "case": "effects",
+      "passed": true,
+      "returncode": 0,
+      "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\hdmi_music_system\\effects.log"
+    }
+  ],
+  "limitations": "effects accelerates BPM only; top accelerates key debounce/mode lock, no internal DUT state forced; packet values passively compared; actual board sound not verified",
+  "production_source_sha256": {
+    "rtl/common/key_debounce.v": "23c4ad57b7564bfcd49c03879299c4f1f53ba14247a211e2835111e68174a619",
+    "rtl/rpg_top.v": "28c4f05e432072d68c535514e527bff4b3de9ad743837a8428466fb840336e61",
+    "rtl/video/hdmi_tx.v": "2e39a0341567b8a5e196ebf028a320a38c44d149ca57a1c275b682535425bb3b"
+  }
+}

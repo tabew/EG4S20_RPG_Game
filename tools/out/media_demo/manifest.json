@@ -1,0 +1,77 @@
+{
+  "format": "24-bit BI_RGB",
+  "fit": "contain",
+  "sequence_count": 8,
+  "files": [
+    {
+      "file": "ANIM0001.BMP",
+      "source": "generated demo frame 1",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "ANIM0002.BMP",
+      "source": "generated demo frame 2",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "ANIM0003.BMP",
+      "source": "generated demo frame 3",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "ANIM0004.BMP",
+      "source": "generated demo frame 4",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "ANIM0005.BMP",
+      "source": "generated demo frame 5",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "ANIM0006.BMP",
+      "source": "generated demo frame 6",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "ANIM0007.BMP",
+      "source": "generated demo frame 7",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "ANIM0008.BMP",
+      "source": "generated demo frame 8",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "PIC00001.BMP",
+      "source": "generated demo poster 1",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    },
+    {
+      "file": "PIC00002.BMP",
+      "source": "generated demo poster 2",
+      "width": 256,
+      "height": 192,
+      "bytes": 147510
+    }
+  ]
+}

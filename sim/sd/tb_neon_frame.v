@@ -17,7 +17,7 @@ module tb_neon_frame;
  .media_osd(1'b0),.media_index(6'd0),.media_count(6'd1),.media_name("NEONVIEW"), \
  .media_brightness(4'd4),.media_contrast(2'd1),.media_view(2'd0),.media_visual(1'b0), \
  .fb_front_valid(gal),.fb_pixel_valid(1'b1),.fb_pixel_rgb(24'h174b85)
- rpg_video #(.VIDEO_MODE(MODE)) dut(`PORTS,.spectrum_border_en(en),.spectrum_levels(levels),
+ rpg_video #(.VIDEO_MODE(MODE)) dut(`PORTS,.hit_trig(1'b0),.hit_kind(2'd0),.spectrum_border_en(en),.spectrum_levels(levels),
  .hs(hs),.vs(vs),.de(de),.frame_tick(tick),.rgb(rgb),.rgb_full(full),.fb_pixel_req(req),.tf_raddr(addr));
  rpg_video_legacy #(.VIDEO_MODE(MODE)) baseline(`PORTS,
  .hs(bhs),.vs(bvs),.de(bde),.frame_tick(btick),.rgb(brgb),.rgb_full(bfull),.fb_pixel_req(breq),.tf_raddr(baddr));

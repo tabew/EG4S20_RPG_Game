@@ -20,6 +20,8 @@ module rpg_core (
     input  wire        clk,
     input  wire        rst_n,
     input  wire [3:0]  key,          // 消抖后的单周期脉冲
+    input  wire        emergency,    // 长按 K1：1 级通告，不要求先打满四只怪
+    output wire        level1_on,    // 1 级字幕还在，视频层用来盖一条红条
 
     output reg         we,
     output reg  [10:0] waddr,
@@ -48,7 +50,10 @@ module rpg_core (
 
     // 蜂鸣器音效：id 选择音色/时长(1..15, 0=静音), trig 为单拍触发脉冲
     output reg  [3:0]  sfx_id,
-    output reg         sfx_trig
+    output reg         sfx_trig,
+    // 打击特效：1 普攻  2 技能  3 怪物反击。trig 单拍。
+    output reg         hit_trig,
+    output reg  [1:0]  hit_kind
 );
 
     //---------------------------------------------------------
@@ -272,17 +277,67 @@ module rpg_core (
 `ifdef SIM_FAST
     localparam [26:0] T_L1   = 27'd20000;
     localparam [26:0] T_L2   = 27'd200000;
-    localparam [26:0] T_BOSS = 27'd30000;
+    localparam [26:0] T_BOSS = 27'd80000;  // 盖过整屏停留，避免演示还没看完就响
+    localparam [26:0] T_BIG  = 27'd12000;
+    localparam [26:0] T_CHAR = 27'd400;       // 仿真里逐字间隔，短于 1 级倒计时
+    localparam [26:0] T_AFTER = 27'd4000;     // 整句跳完后，一行再留一会儿
+    localparam [26:0] T_COVER = 27'd12000;    // 3 级黄字先亮，再被 1 级盖住
 `else
-    localparam [26:0] T_L1   = 27'd50_000_000;   // 约 1.2~2 秒，视像素时钟而定
+    localparam [26:0] T_L1   = 27'd80_000_000;   // 盖过最长一句的逐字时间
     localparam [26:0] T_L2   = 27'd80_000_000;
-    localparam [26:0] T_BOSS = 27'd40_000_000;
+    localparam [26:0] T_BOSS = 27'd20_000_000;   // 买完约半秒就报强敌
+    localparam [26:0] T_BIG  = 27'd6_000_000;
+    localparam [26:0] T_CHAR = 27'd4_000_000;    // 40MHz 下 0.1 秒一个字
+    localparam [26:0] T_AFTER = 27'd8_000_000;   // 整句出来后再留 0.2 秒
+    localparam [26:0] T_COVER = 27'd40_000_000;  // 黄字先停约 1 秒，再被红字盖住
 `endif
     reg        banner_v, side_v, queue_v, alert_pending;
     reg [1:0]  banner_pri;
+    // 整屏阶段才拉高视频红条。收成一行后关掉，避免英文条盖住中文。
+    reg        splash_v;
+    reg [1:0]  splash_pri;
+    reg [10:0] splash_addr;
+    reg [26:0] splash_tmr;
+    reg        type_done;
+    reg        type_ping;     // 整屏刚写出一个字，下一拍给警报
+    // 新提示当拍的整屏请求。字幕寄存器要等时钟沿才更新，解释器直接看这组信号。
+    reg        splash_req;
+    reg [1:0]  splash_req_pri;
+    reg [10:0] splash_req_addr;
+    wire       scene_changed = (scene != scene_d);
+    // 整屏还在，而且它对应的那条字幕没有被撤掉。回血或切走就马上收掉。
+    wire       splash_alive = (banner_v && banner_addr == splash_addr &&
+                               banner_pri == splash_pri) ||
+                              (side_v && side_addr == splash_addr &&
+                               splash_pri == PRI_L2);
+    // 这几条每回合都会出现，整屏会把战斗演示拖死。
+    wire       chatter = (banner_addr_n == `MSG_HIT)  || (banner_addr_n == `MSG_SKILL) ||
+                         (banner_addr_n == `MSG_POTION) || (banner_addr_n == `MSG_ENEMY) ||
+                         (banner_addr_n == `MSG_NOMANA) || (banner_addr_n == `MSG_NOPOT);
+    wire       show_big = splash_req ||
+                          (splash_v && !type_done &&
+                           !scene_changed && splash_alive);
+    assign level1_on = splash_v && (splash_pri == 2'd1);
+    // 1 级红、2 级橙、3 级黄。红底用白字，橙/黄底用黑字。
+    function [3:0] pri_bg;
+        input [1:0] p;
+        begin
+            case (p)
+                2'd1:    pri_bg = 4'd5;
+                2'd2:    pri_bg = 4'd7;
+                default: pri_bg = 4'd8;
+            endcase
+        end
+    endfunction
+    function [3:0] pri_ink;
+        input [1:0] p;
+        begin
+            pri_ink = (p == 2'd1) ? 4'd4 : 4'd0;
+        end
+    endfunction
     reg [10:0] banner_addr, side_addr, queue_addr;
-    reg [26:0] banner_tmr, side_tmr, boss_tmr;
-    reg        boss_arm, boss_latched, map_l1_done;
+    reg [26:0] banner_tmr, side_tmr, boss_tmr, cover_tmr;
+    reg        boss_arm, boss_latched, map_l1_done, cover_arm;
     reg [3:0]  scene_d;
     reg [2:0]  area_d;
     reg        hp_low_d;
@@ -297,7 +352,11 @@ module rpg_core (
                      R_ART_A = 5'd9, R_ART_B = 5'd10, R_ART_C = 5'd11,
                      R_NAME = 5'd12, R_FRM = 5'd13,
                      // 同步 ROM 的输出要 2 拍才有效, 取址后必须空等 1 拍
-                     R_FETCH_W = 5'd14, R_TXT_W = 5'd15, R_ART_W = 5'd16;
+                     R_FETCH_W = 5'd14, R_TXT_W = 5'd15, R_ART_W = 5'd16,
+                     R_BIG_CLR = 5'd17, R_BIG_LEN = 5'd18,
+                     R_BIG_LEN_W = 5'd19, R_BIG_LEN_B = 5'd20,
+                     R_TYPE_A = 5'd21, R_TYPE_W = 5'd22, R_TYPE_B = 5'd23,
+                     R_TYPE_C = 5'd24, R_TYPE_WAIT = 5'd25, R_TYPE_HOLD = 5'd26;
 
     reg [4:0]  rstt;
     reg [9:0]  pc;
@@ -317,6 +376,10 @@ module rpg_core (
     reg [5:0]  frm_w;
     reg [4:0]  frm_h, frm_j;
     reg [8:0]  ch;
+    reg        big_draw;
+    reg [5:0]  big_len, big_got, big_row;
+    reg [10:0] big_base;
+    reg [26:0] type_tmr;
 
     wire [3:0]  op   = cmd_d[31:28];
     wire [4:0]  cy   = cmd_d[27:23];
@@ -428,17 +491,38 @@ module rpg_core (
             frm_x     <= 6'd0;
             frm_y     <= 6'd0;
             ch        <= 8'd0;
+            big_draw  <= 1'b0;
+            big_len   <= 6'd0;
+            big_got   <= 6'd0;
+            big_row   <= 6'd0;
+            big_base  <= 11'd0;
+            type_tmr  <= 27'd0;
+            type_done <= 1'b0;
+            type_ping <= 1'b0;
             cmd_a     <= 9'd0;
             str_a     <= 10'd0;
             art_a     <= 12'd0;
         end else begin
             we <= 1'b0;
+            type_ping <= 1'b0;
 
             case (rstt)
 
             R_IDLE: begin
                 rendering <= 1'b0;
-                if (redraw) begin
+                if (redraw && show_big) begin
+                    rendering <= 1'b1;
+                    big_draw  <= 1'b0;
+                    bg        <= pri_bg(splash_req ? splash_req_pri : splash_pri);
+                    fg        <= pri_ink(splash_req ? splash_req_pri : splash_pri);
+                    cnt11     <= 11'd0;
+                    sptr      <= splash_req ? splash_req_addr : splash_addr;
+                    big_base  <= splash_req ? splash_req_addr : splash_addr;
+                    big_len   <= 6'd0;
+                    big_row   <= ((splash_req ? splash_req_pri : splash_pri) == PRI_L1)
+                                 ? 6'd8 : 6'd14;
+                    rstt      <= R_BIG_CLR;
+                end else if (redraw && !splash_v) begin
                     rendering <= 1'b1;
                     pc        <= scr_addr;
                     fg        <= 4'd3;
@@ -522,11 +606,11 @@ module rpg_core (
                     cnt11 <= 11'd0;
                     rstt  <= R_NAME;
                 end
-                4'd9: begin                       // MSG: 商店/战斗字幕
+                4'd9: begin                       // MSG: 商店/战斗字幕，底色按等级
                     if (banner_v) begin
                         sptr <= banner_addr;
-                        fg   <= (banner_pri == 2'd1) ? 4'd5 :
-                                (banner_pri == 2'd2) ? 4'd7 : 4'd4;
+                        bg   <= pri_bg(banner_pri);
+                        fg   <= pri_ink(banner_pri);
                     end else if (scene == SC_SHOP) begin
                         sptr <= `MSG_HINT;
                         fg   <= 4'd1;
@@ -541,10 +625,11 @@ module rpg_core (
                     ty   <= cy;
                     rstt <= R_TXT_A;
                 end
-                4'd11: begin                      // ADESC: 上下文句子，1 级时被红字盖住
+                4'd11: begin                      // ADESC: 上下文句子，1 级时整行换成警告色
                     if (banner_v && banner_pri == 2'd1) begin
                         sptr <= banner_addr;
-                        fg   <= 4'd5;
+                        bg   <= pri_bg(banner_pri);
+                        fg   <= pri_ink(banner_pri);
                     end else begin
                         sptr <= ctx_addr;
                     end
@@ -552,13 +637,14 @@ module rpg_core (
                     ty   <= cy;
                     rstt <= R_TXT_A;
                 end
-                4'd12: begin                      // SIDE: 2 级提示，和区域句子共存
+                4'd12: begin                      // SIDE: 2 级提示，橙底，和区域句子共存
                     if (banner_v && banner_pri == 2'd1) begin
                         sptr <= `MSG_NONE;
                         fg   <= 4'd3;
                     end else if (side_v) begin
                         sptr <= side_addr;
-                        fg   <= 4'd7;
+                        bg   <= pri_bg(PRI_L2);
+                        fg   <= pri_ink(PRI_L2);
                     end else begin
                         sptr <= `MSG_FAR;
                         fg   <= 4'd3;
@@ -611,9 +697,16 @@ module rpg_core (
 
             R_TXT_C: begin
                 // sptr 越界(或字符串没有结束符)时也要收手, 否则会把整屏刷成垃圾
-                if (str_d == 16'hFFFF || sptr >= 11'd1020) begin
-                    pc   <= pc + 10'd1;
-                    rstt <= R_FETCH;
+                if (str_d == 16'hFFFF || sptr >= 11'd1020 ||
+                    (big_draw && big_got == big_len)) begin
+                    if (big_draw) begin
+                        big_draw  <= 1'b0;
+                        rstt      <= R_IDLE;
+                        rendering <= 1'b0;
+                    end else begin
+                        pc   <= pc + 10'd1;
+                        rstt <= R_FETCH;
+                    end
                 end else begin
                     if (tx < 6'd40) begin
                         we    <= 1'b1;
@@ -623,6 +716,8 @@ module rpg_core (
                     if (tx == 6'd39) begin tx <= 6'd0; ty <= ty + 6'd1; end
                     else             tx <= tx + 6'd1;
                     sptr <= sptr + 11'd1;
+                    if (big_draw)
+                        big_got <= big_got + 6'd1;
                     rstt <= R_TXT_A;
                 end
             end
@@ -745,8 +840,112 @@ module rpg_core (
                 end
             end
 
+            // 整屏：实心色块铺满，再把这句话居中画在色块上。1 级避开视频红条。
+            R_BIG_CLR: begin
+                we    <= 1'b1;
+                waddr <= cnt11;
+                wdata <= {4'd0, bg, G_FULL};
+                if (cnt11 == 11'd1199) begin
+                    sptr <= big_base;
+                    rstt <= R_BIG_LEN;
+                end else begin
+                    cnt11 <= cnt11 + 11'd1;
+                end
+            end
+
+            R_BIG_LEN: begin
+                str_a <= sptr[9:0];
+                rstt  <= R_BIG_LEN_W;
+            end
+
+            R_BIG_LEN_W: begin
+                rstt <= R_BIG_LEN_B;
+            end
+
+            R_BIG_LEN_B: begin
+                if (str_d == 16'hFFFF || big_len == 6'd36 || sptr >= 11'd1020) begin
+                    tx       <= (6'd40 - big_len) >> 1;
+                    ty       <= big_row;
+                    sptr     <= big_base;
+                    big_got  <= 6'd0;
+                    rstt     <= R_TYPE_A;
+                end else begin
+                    big_len <= big_len + 6'd1;
+                    sptr    <= sptr + 11'd1;
+                    rstt    <= R_BIG_LEN;
+                end
+            end
+
+            // 整屏句子：一个字写上，再等 0.1 秒，再写下一个。
+            R_TYPE_A: begin
+                str_a <= sptr[9:0];
+                rstt  <= R_TYPE_W;
+            end
+
+            R_TYPE_W: begin
+                rstt <= R_TYPE_B;
+            end
+
+            R_TYPE_B: begin
+                ch   <= str_d[8:0];
+                rstt <= R_TYPE_C;
+            end
+
+            R_TYPE_C: begin
+                if (str_d == 16'hFFFF || big_got == big_len || sptr >= 11'd1020) begin
+                    type_tmr <= T_CHAR;
+                    rstt     <= R_TYPE_HOLD;
+                end else begin
+                    if (tx < 6'd40) begin
+                        we    <= 1'b1;
+                        waddr <= cell_a;
+                        wdata <= {bg, fg, ch};
+                    end
+                    tx       <= tx + 6'd1;
+                    sptr     <= sptr + 11'd1;
+                    big_got  <= big_got + 6'd1;
+                    type_tmr <= T_CHAR;
+                    type_ping <= 1'b1;
+                    // 最后一个字写上后只再停 0.1 秒，然后收成一行。
+                    if (big_got + 6'd1 == big_len)
+                        rstt <= R_TYPE_HOLD;
+                    else
+                        rstt <= R_TYPE_WAIT;
+                end
+            end
+
+            R_TYPE_WAIT: begin
+                if (type_tmr == 27'd0)
+                    rstt <= R_TYPE_A;
+                else
+                    type_tmr <= type_tmr - 27'd1;
+            end
+
+            R_TYPE_HOLD: begin
+                if (type_tmr == 27'd0) begin
+                    type_done <= 1'b1;
+                    rendering <= 1'b0;
+                    rstt      <= R_IDLE;
+                end else
+                    type_tmr <= type_tmr - 27'd1;
+            end
+
             default: rstt <= R_IDLE;
             endcase
+
+            // 提示被撤掉，或来了新的一句，就停掉正在跳的字。
+            if ((splash_req || !show_big) &&
+                (rstt == R_BIG_CLR || rstt == R_BIG_LEN || rstt == R_BIG_LEN_W ||
+                 rstt == R_BIG_LEN_B || rstt == R_TYPE_A || rstt == R_TYPE_W ||
+                 rstt == R_TYPE_B || rstt == R_TYPE_C || rstt == R_TYPE_WAIT ||
+                 rstt == R_TYPE_HOLD)) begin
+                rstt      <= R_IDLE;
+                rendering <= 1'b0;
+                big_draw  <= 1'b0;
+                we        <= 1'b0;
+            end
+            if (splash_req)
+                type_done <= 1'b0;
         end
     end
 
@@ -805,19 +1004,31 @@ module rpg_core (
             fade_dir     <= 1'b1;
             sfx_id       <= 4'd0;
             sfx_trig     <= 1'b0;
+            hit_trig     <= 1'b0;
+            hit_kind     <= 2'd0;
         end else begin
-            // Keep requests made during a render pending until R_IDLE accepts them.
+            // 渲染还没回到空闲时，保留这次重绘请求，避免和自动重绘撞车后丢画面。
             if (rstt == R_IDLE)
                 redraw <= 1'b0;
             req_stb <= 1'b0;
             sfx_trig <= 1'b0;                        // 音效触发默认清零(单拍脉冲)
+            hit_trig <= 1'b0;
             if (alert_pending && !rendering)
                 redraw <= 1'b1;
             if (scene != SC_PIC) pic_tmr <= 23'd0;   // 离开插图页就清自动播放计时
 
-            // 任意按键 -> 菜单提示音(后面的战斗音效优先级更高, 会覆盖它)
-            if (key_e != 4'd0) begin
-                sfx_id   <= 4'd1;
+            // 四个键各一声。后面的战斗、购买音效会盖过这一声。
+            if (key_e[0]) begin
+                sfx_id   <= 4'd1;             // 1 键 1200Hz
+                sfx_trig <= 1'b1;
+            end else if (key_e[1]) begin
+                sfx_id   <= 4'd11;            // 2 键 1800Hz
+                sfx_trig <= 1'b1;
+            end else if (key_e[2]) begin
+                sfx_id   <= 4'd13;            // 3 键 2600Hz
+                sfx_trig <= 1'b1;
+            end else if (key_e[3]) begin
+                sfx_id   <= 4'd7;             // 4 键 1000Hz
                 sfx_trig <= 1'b1;
             end
 
@@ -871,6 +1082,10 @@ module rpg_core (
                         redraw <= 1'b1;
                         sfx_id   <= 4'd2;            // 被怪物击中: 低音
                         sfx_trig <= 1'b1;
+                        if (ehp != 10'd0) begin
+                            hit_kind <= 2'd3;        // 怪物还活着才扑过来
+                            hit_trig <= 1'b1;
+                        end
                     end
 
                     B_CHECK: begin
@@ -997,7 +1212,7 @@ module rpg_core (
                             redraw <= 1'b1;
                         end else if (key_e[3]) begin
                             if (boss_dead) begin
-                                if (area == 3'd4) begin
+                                if (area == 3'd3) begin
                                     scene <= SC_WIN;
                                     sfx_id   <= 4'd6;    // 通关: 高音长鸣
                                     sfx_trig <= 1'b1;
@@ -1028,6 +1243,8 @@ module rpg_core (
                             bst      <= B_DELAY;
                             sfx_id   <= 4'd11;           // 挥击: 短促高频
                             sfx_trig <= 1'b1;
+                            hit_kind <= 2'd1;
+                            hit_trig <= 1'b1;
                             redraw   <= 1'b1;
                         end else if (key_e[1]) begin
                             if ({2'b00, mp} >= {2'b00, sk_cost}) begin
@@ -1040,6 +1257,8 @@ module rpg_core (
                                 bst      <= B_DELAY;
                                 sfx_id   <= 4'd13;       // 释放技能: 高音
                                 sfx_trig <= 1'b1;
+                                hit_kind <= 2'd2;
+                                hit_trig <= 1'b1;
                             end else begin
                                 req_stb  <= 1'b1;
                                 req_pri  <= PRI_L2;
@@ -1280,8 +1499,38 @@ module rpg_core (
                     endcase
                 end
             end
+
+            // 整屏每跳出一个字响一声。音高按这句话区分，不跟按键抢同一拍。
+            if (type_ping && key_e == 4'd0) begin
+                sfx_trig <= 1'b1;
+                sfx_id   <= prompt_tone(splash_pri, splash_addr);
+            end
         end
     end
+
+    function [3:0] prompt_tone;
+        input [1:0]  pri;
+        input [10:0] addr;
+        begin
+            if (addr == `MSG_ALERT)        prompt_tone = 4'd2;
+            else if (addr == `MSG_DYING)   prompt_tone = 4'd5;
+            else if (addr == `MSG_BOSS)    prompt_tone = 4'd12;
+            else if (addr == `MSG_MEET)    prompt_tone = 4'd14;
+            else if (addr == `MSG_KILL)    prompt_tone = 4'd3;
+            else if (addr == `MSG_LEVEL)   prompt_tone = 4'd4;
+            else if (addr == `MSG_FLEE)    prompt_tone = 4'd15;
+            else if (addr == `MSG_FAIL)    prompt_tone = 4'd14;
+            else if (addr == `MSG_NOGOLD)  prompt_tone = 4'd10;
+            else if (addr == `MSG_BUY)     prompt_tone = 4'd9;
+            else if (addr == `MSG_UPGRADE) prompt_tone = 4'd4;
+            else if (addr == `MSG_HINT)    prompt_tone = 4'd11;
+            else if (addr == `MSG_HINT2)   prompt_tone = 4'd10;
+            else if (addr == `MSG_AD)      prompt_tone = 4'd7;
+            else if (pri == PRI_L1)        prompt_tone = 4'd12;
+            else if (pri == PRI_L2)        prompt_tone = 4'd10;
+            else                           prompt_tone = 4'd9;
+        end
+    endfunction
 
     //=========================================================
     // 消息优先级
@@ -1290,11 +1539,10 @@ module rpg_core (
     //   3 级商店公告。主行空着就直接显示，并一直留到被更高优先级打断或离开界面
     //=========================================================
     reg        banner_v_n, side_v_n, queue_v_n, alert_n;
-    reg        boss_arm_n, boss_latched_n, map_l1_n;
+    reg        boss_arm_n, boss_latched_n, map_l1_n, cover_arm_n;
     reg [1:0]  banner_pri_n;
     reg [10:0] banner_addr_n, side_addr_n, queue_addr_n;
-    reg [26:0] banner_tmr_n, side_tmr_n, boss_tmr_n;
-    wire       scene_changed = (scene != scene_d);
+    reg [26:0] banner_tmr_n, side_tmr_n, boss_tmr_n, cover_tmr_n;
     wire       area_changed  = (area != area_d);
     wire       shop_now = (scene == SC_SHOP) || (scene == SC_SHOP2);
 
@@ -1311,8 +1559,13 @@ module rpg_core (
         boss_arm_n     = boss_arm;
         boss_tmr_n     = boss_tmr;
         boss_latched_n = boss_latched;
+        cover_arm_n    = cover_arm;
+        cover_tmr_n    = cover_tmr;
         map_l1_n       = map_l1_done;
         alert_n        = alert_pending;
+        splash_req     = 1'b0;
+        splash_req_pri = 2'd0;
+        splash_req_addr = 11'd0;
 
         if (alert_pending && !rendering)
             alert_n = 1'b0;
@@ -1330,6 +1583,8 @@ module rpg_core (
             queue_v_n     = 1'b0;
             boss_arm_n    = 1'b0;
             boss_tmr_n    = 27'd0;
+            cover_arm_n   = 1'b0;
+            cover_tmr_n   = 27'd0;
         end
 
         if (banner_v_n && (banner_pri_n == PRI_L1 || banner_pri_n == PRI_L2)) begin
@@ -1378,7 +1633,7 @@ module rpg_core (
         end
 
         if (scene == SC_MAP && (scene_changed || area_changed)) begin
-            if (area >= 3'd2 && danger_addr != 11'd0) begin
+            if (danger_addr != 11'd0) begin
                 side_v_n    = 1'b1;
                 side_addr_n = danger_addr;
                 side_tmr_n  = T_L2;
@@ -1458,7 +1713,7 @@ module rpg_core (
             alert_n       = 1'b1;
         end
 
-        // Healing invalidates only the low-health warning, not a boss warning.
+        // 回血只撤掉低血量警告。BOSS 警告和紧急通告不在这里清掉。
         if (!hp_low && banner_v_n && banner_pri_n == PRI_L1 &&
             banner_addr_n == `MSG_DYING) begin
             banner_tmr_n = 27'd0;
@@ -1473,6 +1728,79 @@ module rpg_core (
                 banner_pri_n = 2'd0;
             end
         end
+
+        // 没打满四只时，进商店先亮 3 级黄字，约一秒后 1 级红字盖住，结束后黄字回来。
+        // 已经能打强敌时不走这条，留给购买后的强敌提示。
+        if (scene_changed && scene == SC_SHOP && !boss_ready) begin
+            banner_v_n    = 1'b1;
+            banner_pri_n  = PRI_L3;
+            banner_addr_n = `MSG_HINT;
+            banner_tmr_n  = 27'd0;
+            cover_arm_n   = 1'b1;
+            cover_tmr_n   = T_COVER;
+            alert_n       = 1'b1;
+        end
+
+        if (cover_arm_n) begin
+            if (banner_v_n && banner_pri_n == PRI_L1)
+                cover_arm_n = 1'b0;
+            else if (cover_tmr_n != 27'd0)
+                cover_tmr_n = cover_tmr_n - 27'd1;
+            else begin
+                cover_arm_n = 1'b0;
+                if (banner_v_n && banner_pri_n == PRI_L3) begin
+                    queue_v_n    = 1'b1;
+                    queue_addr_n = banner_addr_n;
+                end else if (!queue_v_n) begin
+                    queue_v_n    = 1'b1;
+                    queue_addr_n = `MSG_HINT;
+                end
+                banner_v_n    = 1'b1;
+                banner_pri_n  = PRI_L1;
+                banner_addr_n = `MSG_ALERT;
+                banner_tmr_n  = T_L1;
+                alert_n       = 1'b1;
+            end
+        end
+
+        // 演示键最后生效。地图上的区域句本身就是被抢走的字幕，超时后自己回来。
+        // 商店没有 3 级公告时，塞进一条短广告，超时后由同一行弹回。
+        if (emergency) begin
+            cover_arm_n = 1'b0;
+            if (banner_v_n && banner_pri_n == PRI_L3) begin
+                queue_v_n    = 1'b1;
+                queue_addr_n = banner_addr_n;
+            end else if (shop_now && !queue_v_n) begin
+                queue_v_n    = 1'b1;
+                queue_addr_n = `MSG_AD;
+            end
+            banner_v_n    = 1'b1;
+            banner_pri_n  = PRI_L1;
+            banner_addr_n = `MSG_ALERT;
+            banner_tmr_n  = T_L1;
+            alert_n       = 1'b1;
+        end
+
+        // 整句跳完后，1 级主字幕再留一小会儿。地图侧栏按原倒计时留着。
+        if (type_done && splash_v && banner_v_n && banner_pri_n == PRI_L1 &&
+            banner_tmr_n > T_AFTER)
+            banner_tmr_n = T_AFTER;
+
+        // 攻击、技能、喝药、反击是战斗流水账，直接一行，不再盖住画面。
+        // 主字幕优先整屏。地图上的 2 级在没有 1 级时单独整屏。
+        if (banner_v_n && !chatter && (banner_addr_n != banner_addr ||
+                           banner_pri_n != banner_pri || !banner_v)) begin
+            splash_req      = 1'b1;
+            splash_req_pri  = banner_pri_n;
+            splash_req_addr = banner_addr_n;
+        end else if (side_v_n && (side_addr_n != side_addr || !side_v) &&
+                     !(banner_v_n && banner_pri_n == PRI_L1)) begin
+            splash_req      = 1'b1;
+            splash_req_pri  = PRI_L2;
+            splash_req_addr = side_addr_n;
+        end
+        if (splash_req || (splash_v && (splash_tmr == 27'd0 || !splash_alive)))
+            alert_n = 1'b1;
     end
 
     always @(posedge clk or negedge rst_n) begin
@@ -1489,12 +1817,18 @@ module rpg_core (
             boss_arm      <= 1'b0;
             boss_tmr      <= 27'd0;
             boss_latched  <= 1'b0;
+            cover_arm     <= 1'b0;
+            cover_tmr     <= 27'd0;
             map_l1_done   <= 1'b0;
             alert_pending <= 1'b0;
             scene_d       <= SC_TITLE;
             area_d        <= 3'd0;
             hp_low_d      <= 1'b0;
             ctx_var_d     <= 2'd0;
+            splash_v      <= 1'b0;
+            splash_pri    <= 2'd0;
+            splash_addr   <= `MSG_NONE;
+            splash_tmr    <= 27'd0;
         end else begin
             banner_v      <= banner_v_n;
             banner_pri    <= banner_pri_n;
@@ -1508,12 +1842,27 @@ module rpg_core (
             boss_arm      <= boss_arm_n;
             boss_tmr      <= boss_tmr_n;
             boss_latched  <= boss_latched_n;
+            cover_arm     <= cover_arm_n;
+            cover_tmr     <= cover_tmr_n;
             map_l1_done   <= map_l1_n;
             alert_pending <= alert_n;
             scene_d       <= scene;
             area_d        <= area;
             hp_low_d      <= hp_low;
             ctx_var_d     <= ctx_var;
+            if (splash_req) begin
+                splash_v    <= 1'b1;
+                splash_pri  <= splash_req_pri;
+                splash_addr <= splash_req_addr;
+                splash_tmr  <= 27'd1;          // 逐字期间不倒计时
+            end else if (scene_changed || !splash_alive) begin
+                splash_v <= 1'b0;
+            end else if (splash_v && type_done) begin
+                if (splash_tmr != 27'd0)
+                    splash_tmr <= splash_tmr - 27'd1;
+                else
+                    splash_v <= 1'b0;
+            end
         end
     end
 

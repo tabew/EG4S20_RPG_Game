@@ -40,6 +40,8 @@ module rpg_video #(
     input  wire [3:0]  mon_fade,
     input  wire [1:0]  mon_rotation, // clockwise quarter turns, monster layer only
     input  wire        mon_mirror,   // horizontal mirror after rotation
+    input  wire        hit_trig,     // 战斗打击，单拍
+    input  wire [1:0]  hit_kind,     // 1 普攻  2 技能  3 怪物反击
 
     // 彩条高度（来自 note_bars，每 8 位一根，0..120）
     input  wire [63:0] bars,
@@ -66,6 +68,7 @@ module rpg_video #(
     input wire [3:0] media_brightness,
     input wire [1:0] media_contrast, media_view,
     input wire media_visual,
+    input wire media_alert,
     output wire frame_tick, // one pixel clock at the beginning of vertical blank
 
     // 视频输出
@@ -270,6 +273,9 @@ module rpg_video #(
     wire        mon_win;
     wire [15:0] mon_rgb;
     wire        mon_valid;
+    wire signed [4:0] fx_jx, fx_jy;
+    wire        fx_hit;
+    wire [15:0] fx_rgb;
 
     mon_layer u_mon (
         .clk    (clk),
@@ -277,6 +283,8 @@ module rpg_video #(
         .mon_id (mon_id),
         .fade   (mon_fade),
         .rotation(mon_rotation),.mirror(mon_mirror),
+        .jx     (fx_jx),
+        .jy     (fx_jy),
         .x      (xs),
         .y      (ys),
         .in_win (mon_win),
@@ -291,6 +299,7 @@ module rpg_video #(
     //---------------------------------------------------------
     wire [15:0] gal_rgb;
     wire [23:0] gal_rgb_full;
+    wire alert_opaque;
     wire fb_req_s2;
     // In CEA the full image includes coordinate zero. Qualify reset/startup
     // pipeline contents with the matching S2 DE, not just coordinate bounds.
@@ -307,6 +316,7 @@ module rpg_video #(
         .media_osd(media_osd), .media_index(media_index), .media_count(media_count),
         .media_name(media_name), .media_brightness(media_brightness),
         .media_contrast(media_contrast), .media_view(media_view), .media_visual(media_visual),
+        .media_alert(media_alert),
         .x2       (xd2),
         .y2       (yd2),
         .x3       (xd3),
@@ -318,7 +328,7 @@ module rpg_video #(
         .dfill    (dfill),
         .tf_rdata (tf_rdata),
         .tf_raddr (tf_raddr),
-        .gal_rgb  (gal_rgb), .gal_rgb_full(gal_rgb_full),
+        .gal_rgb  (gal_rgb), .gal_rgb_full(gal_rgb_full), .alert_opaque(alert_opaque),
         .fb_front_valid(fb_front_valid), .fb_pixel_valid(fb_pixel_valid),
         .fb_pixel_rgb(fb_pixel_rgb), .fb_pixel_req(fb_req_s2)
     );
@@ -353,10 +363,40 @@ module rpg_video #(
     wire        bit_on   = gw_r[15 - sx3];
     wire [15:0] char_pix = pal(bit_on ? cell_r3[12:9] : cell_r3[16:13]);
 
-    // 混层优先级：怪物立绘 > 动态插图 > 字符层
-    //   前两者只在"该格没有字形"时透出，所以文字和边框始终压在图上
+    // 粒子用逻辑坐标算，再延迟 3 拍，和立绘、字符落在同一级。
+    hit_fx u_fx (
+        .clk   (clk),
+        .rst_n (rst_n),
+        .frame (frame_tick),
+        .trig  (hit_trig),
+        .kind  (hit_kind),
+        .x     (xs),
+        .y     (ys),
+        .jx    (fx_jx),
+        .jy    (fx_jy),
+        .hit   (fx_hit),
+        .rgb   (fx_rgb)
+    );
+    reg        fx1, fx2, fx3;
+    reg [15:0] fr1, fr2, fr3;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            fx1 <= 1'b0; fx2 <= 1'b0; fx3 <= 1'b0;
+            fr1 <= 16'd0; fr2 <= 16'd0; fr3 <= 16'd0;
+        end else begin
+            fx1 <= fx_hit && mon_on;
+            fr1 <= fx_rgb;
+            fx2 <= fx1; fr2 <= fr1;
+            fx3 <= fx2; fr3 <= fr2;
+        end
+    end
+
+    // 混层优先级：粒子 > 怪物立绘 > 动态插图 > 字符层
+    //   立绘和插图只在"该格没有字形"时透出，所以文字和边框始终压在图上。
+    //   粒子盖在最上面，打击时才亮几帧。
     wire cell_blank = (cell_r3[8:0] == 9'd0);
-    wire [15:0] pix_base = (mon_on && mon_valid && cell_blank) ? mon_rgb :
+    wire [15:0] pix_base = fx3 ? fr3 :
+                           (mon_on && mon_valid && cell_blank) ? mon_rgb :
                            (win3 && cell_blank)                ? anim_rgb_r : char_pix;
 
     // Gallery OSD has two registered stages. Carry every other layer and the
@@ -386,12 +426,12 @@ module rpg_video #(
             bars4<=bars; bars5<=bars4;
         end
     end
-    wire [15:0] pix_gal = gal5 ? gal_rgb : base5;
+    wire [15:0] pix_gal = (gal5 || alert_opaque) ? gal_rgb : base5;
     function [23:0] expand565;
         input [15:0] c;
         begin expand565={c[15:11],c[15:13],c[10:5],c[10:9],c[4:0],c[4:2]}; end
     endfunction
-    wire [23:0] pix_gal_full = gal5 ? gal_rgb_full : expand565(base5);
+    wire [23:0] pix_gal_full = (gal5 || alert_opaque) ? gal_rgb_full : expand565(base5);
 
     //---------------------------------------------------------
     // 音频频谱彩条层（最上层，屏幕底部）
@@ -696,6 +736,7 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
     input  wire [3:0]  tf_rdata,
     output wire [15:0] tf_raddr,     // 0..49151 = row*256 + col
     output wire [15:0] gal_rgb,
+    output wire alert_opaque,
     input wire [1:0] media_mode,
     input wire media_auto, media_settings, media_loading, media_osd,
     input wire [5:0] media_index, media_count,
@@ -703,6 +744,7 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
     input wire [3:0] media_brightness,
     input wire [1:0] media_contrast, media_view,
     input wire media_visual,
+    input wire media_alert,
     input wire fb_front_valid, fb_pixel_valid,
     input wire [23:0] fb_pixel_rgb,
     output wire fb_pixel_req,
@@ -743,13 +785,15 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
     localparam [11:0] PARAM_Y = (VIDEO_MODE==1) ? 12'd440 : 12'd474;
     localparam [11:0] SETTINGS_Y = (VIDEO_MODE==1) ? 12'd460 : 12'd496;
     localparam [11:0] MARQUEE_Y = (VIDEO_MODE==1) ? 12'd44 : 12'd570;
+    localparam [11:0] ALERT_TOP = (VIDEO_MODE==1) ? 12'd200 : 12'd260;
+    localparam [11:0] ALERT_H = 12'd48;
     wire full_in2 = x2>=FULL_X && x2<FULL_X+12'd640 && y2>=FULL_Y && y2<FULL_Y+12'd480;
     wire full_in3 = x3>=FULL_X && x3<FULL_X+12'd640 && y3>=FULL_Y && y3<FULL_Y+12'd480;
     // No reads during blank or outside the native 640x480 image. View settings
     // never change this sequential consumption order. Loading writes the back.
     assign fb_pixel_req = rst_n && gal_on && front_valid && full_in2;
     wire loading = (media_loading === 1'b1);
-    wire osd_on = (media_osd === 1'b1) || (media_settings === 1'b1);
+    wire osd_on = (media_osd === 1'b1) || (media_settings === 1'b1) || (media_alert === 1'b1);
     wire settings_on = (media_settings === 1'b1);
     wire [11:0] pic_x = (view_sel == 1) ? 12'd192 : GX0;
     wire [11:0] pic_y = (view_sel == 1) ? 12'd140 : GY0;
@@ -1035,6 +1079,7 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
                 ".": ascii5x7=35'b00000_00000_00000_00000_00000_00110_00110;
                 "=": ascii5x7=35'b00000_00000_11111_00000_11111_00000_00000;
                 "_": ascii5x7=35'b00000_00000_00000_00000_00000_00000_11111;
+                "!": ascii5x7=35'b00100_00100_00100_00100_00100_00000_00100;
                 default: ascii5x7=35'd0;
             endcase
         end
@@ -1069,6 +1114,7 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
         end
     end
 
+    wire [11:0] alert_local = y3 - ALERT_TOP;
     reg [2:0] text_row;
     reg [11:0] text_y;
     reg text_area;
@@ -1080,12 +1126,15 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
         else if (y3>=PARAM_Y && y3<PARAM_Y+12'd16) begin text_row=3; text_y=y3-PARAM_Y; text_area=1; end
         else if (y3>=SETTINGS_Y && y3<SETTINGS_Y+12'd16) begin text_row=4; text_y=y3-SETTINGS_Y; text_area=1; end
         else if (y3>=MARQUEE_Y && y3<MARQUEE_Y+12'd16) begin text_row=5; text_y=y3-MARQUEE_Y; text_area=1; end
+        else if (media_alert && y3>=ALERT_TOP && y3<ALERT_TOP+ALERT_H) begin
+            text_row=5; text_y={8'd0,alert_local[3:0]}; text_area=1;
+        end
     end
     wire [11:0] text_x = x3-12'd16;
     wire [11:0] marquee_sum = text_x + {3'd0,scroll};
     wire [11:0] marquee_x = (marquee_sum>=768) ? marquee_sum-12'd768 :
                                            (marquee_sum>=384) ? marquee_sum-12'd384 : marquee_sum;
-    wire [11:0] cell_x = (text_row==5) ? marquee_x : text_x;
+    wire [11:0] cell_x = (text_row==5 && !media_alert) ? marquee_x : text_x;
     wire [6:0] text_column = cell_x / 12;
     wire [3:0] glyph_x = (cell_x % 12) >> 1;
     wire [2:0] glyph_y = text_y[3:1];
@@ -1094,7 +1143,10 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
     reg [7:0] text_char;
     always @(*) begin
         text_line=0; text_length=0;
-        case (text_row)
+        if (media_alert && (text_row==0 || text_row==5)) begin
+            text_line="!! EMERGENCY ALERT !!";
+            text_length=21;
+        end else case (text_row)
             0: begin
                 text_line = {(mode_sel==1 ? "GALLERY " : mode_sel==2 ? "GAME    " : "SEQUENCE"),
                     "  ", ((media_auto===1'b1) ? "AUTO  " : "PAUSED"),
@@ -1128,7 +1180,7 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
                     text_line=front_valid ? "SETTINGS: K1 BRIGHT K2 CONTRAST K3 ZOOM K4 EXIT" :
                                "SETTINGS: K1 BRIGHT K2 CONTRAST K3 VIEW K4 EXIT"; text_length=47;
                 end else begin
-                    text_line="HOLD K1 HUD K2 BARS K3 MUTE K4 SETTINGS"; text_length=39;
+                    text_line="HOLD K1 EMERGENCY K2 BARS K3 MUTE K4 SET"; text_length=40;
                 end
             end
             5: begin text_line="FPGA MULTIMEDIA - TF BMP PLAYER "; text_length=32; end
@@ -1141,7 +1193,10 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
     wire [34:0] glyph_bits = ascii5x7(text_char);
     wire text_pixel = text_area && x3>=16 && x3<HUD_RIGHT && glyph_x<5 && glyph_y<7 &&
                       glyph_bits[34-glyph_y*5-glyph_x];
-    wire [15:0] text_color = (text_row==0) ? 16'hFFE0 :
+    wire alert_bg = media_alert && y3>=ALERT_TOP && y3<ALERT_TOP+ALERT_H &&
+                     x3>=12'd8 && x3<HUD_RIGHT+12'd8;
+    wire [15:0] text_color = (media_alert && (text_row==0 || text_row==5)) ? 16'hF800 :
+                             (text_row==0) ? 16'hFFE0 :
                              ((text_row==1) && (loading || tf_err!=0)) ? 16'hFD20 :
                              (text_row==3 || text_row==4 || text_row==5) ? 16'h07FF : 16'hFFFF;
     // Preserve all eight diagnostic bits and legacy unconnected behavior.
@@ -1160,10 +1215,12 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
     wire [23:0] image_full = front_valid ?
              (full_in3 ? (full_pixel_valid ? full_adjusted : 24'd0) :
               full_ring ? expand565(16'h39e7) : 24'd0) : expand565(image_rgb);
-    wire [23:0] rgb_full_comb = !gal_on ? 24'd0 :
+    wire [23:0] rgb_full_comb = alert_bg ? (text_pixel ? 24'hffffff : 24'hff0000) :
+                              !gal_on ? 24'd0 :
                               (osd_on && text_pixel) ? expand565(text_color) : image_full;
     wire [15:0] full565_comb={rgb_full_comb[23:19],rgb_full_comb[15:10],rgb_full_comb[7:3]};
-    wire [15:0] rgb_comb = front_valid ? full565_comb : !gal_on ? 16'h0000 :
+    wire [15:0] rgb_comb = alert_bg ? (text_pixel ? 16'hffff : 16'hf800) :
+                           front_valid ? full565_comb : !gal_on ? 16'h0000 :
                            (osd_on && text_pixel) ? text_color : image_rgb;
     generate if (PIPELINE != 0) begin : g_osd_pipeline
         // P1 ends coordinate division, text selection and picture adjustment.
@@ -1173,8 +1230,9 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
         reg [2:0] gy_p1;
         reg area_p1, osd_p1, gal_p1;
         reg [15:0] color_p1, image_p1, rgb_p2;
-        reg front_p1, front_p2;
+        reg front_p1, front_p2, alert_bg_p1;
         reg [23:0] image_full_p1, rgb_full_p2;
+        reg alert_opaque_r;
         wire [34:0] bits_p1 = ascii5x7(char_p1);
         wire pixel_p1 = area_p1 && gx_p1<5 && gy_p1<7 &&
                         bits_p1[34-gy_p1*5-gx_p1];
@@ -1184,23 +1242,30 @@ module gal_layer #(parameter integer PIPELINE = 0, parameter integer VIDEO_MODE 
                 area_p1<=0; osd_p1<=0; gal_p1<=0;
                 color_p1<=0; image_p1<=0; rgb_p2<=0;
                 front_p1<=0; front_p2<=0; image_full_p1<=0; rgb_full_p2<=0;
+                alert_bg_p1<=0; alert_opaque_r<=0;
             end else begin
                 char_p1<=text_char; gx_p1<=glyph_x; gy_p1<=glyph_y;
                 area_p1<=text_area && x3>=16 && x3<HUD_RIGHT;
                 osd_p1<=osd_on; gal_p1<=gal_on;
                 color_p1<=text_color; image_p1<=image_rgb;
                 front_p1<=front_valid; front_p2<=front_p1; image_full_p1<=image_full;
-                rgb_full_p2<=!gal_p1 ? 24'd0 :
+                alert_bg_p1<=alert_bg;
+                alert_opaque_r<=alert_bg_p1;
+                rgb_full_p2<=alert_bg_p1 ? (pixel_p1 ? 24'hffffff : 24'hff0000) :
+                        !gal_p1 ? 24'd0 :
                         (osd_p1 && pixel_p1) ? expand565(color_p1) : image_full_p1;
-                rgb_p2<=!gal_p1 ? 16'h0000 :
+                rgb_p2<=alert_bg_p1 ? (pixel_p1 ? 16'hffff : 16'hf800) :
+                        !gal_p1 ? 16'h0000 :
                         (osd_p1 && pixel_p1) ? color_p1 : image_p1;
             end
         end
+        assign alert_opaque = alert_opaque_r;
         assign gal_rgb = front_p2 ? {rgb_full_p2[23:19],rgb_full_p2[15:10],rgb_full_p2[7:3]} : rgb_p2;
         assign gal_rgb_full = rgb_full_p2;
     end else begin : g_osd_combinational
         assign gal_rgb = rgb_comb;
         assign gal_rgb_full = rgb_full_comb;
+        assign alert_opaque = alert_bg;
     end endgenerate
 
 endmodule

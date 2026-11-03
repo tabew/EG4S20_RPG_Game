@@ -1,0 +1,10 @@
+{
+  "tile_long_edge_pixels": 32,
+  "frame_width_logical_pixels": 16,
+  "source": "real_FFT_8bands",
+  "effect": "body_brightness_and_inner_glow",
+  "decorative_hue_animation": false,
+  "scope": "RPG_battle_outer_frame_only",
+  "preview": "public RTL RGB representative fixture, not board capture",
+  "board_verified": false
+}

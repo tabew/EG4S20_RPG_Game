@@ -6,7 +6,7 @@ module tb_message_edges;
  reg clk=0; always #10 clk=~clk;
  reg rst_n=0; reg [3:0] key=0;
  wire we; wire [10:0] waddr; wire [16:0] wdata;
- rpg_core dut(.clk(clk),.rst_n(rst_n),.key(key),.we(we),.waddr(waddr),.wdata(wdata));
+ rpg_core dut(.clk(clk),.rst_n(rst_n),.key(key),.emergency(1'b0),.we(we),.waddr(waddr),.wdata(wdata));
  reg [16:0] cells[0:1199];
  integer starts=0; reg was_rendering=0; reg [9:0] last_start_pc;
  always @(posedge clk) begin
@@ -26,7 +26,7 @@ module tb_message_edges;
  n=0; calm=0;
  while(calm<8 && n<300000) begin
  @(negedge clk); n=n+1;
- if(!dut.rendering && !dut.redraw && !dut.alert_pending && dut.rstt==0) calm=calm+1;
+ if(!dut.rendering && !dut.redraw && !dut.alert_pending && dut.rstt==0 && !dut.splash_v) calm=calm+1;
  else calm=0;
  end
  if(n==300000) $fatal(1,"idle timeout");
@@ -48,7 +48,7 @@ module tb_message_edges;
  if(dut.banner_addr!=`MSG_DYING || !dut.banner_v) $fatal(1,"no warning initial condition");
  tap(4); // normal rest: subtracts 10 gold and restores HP
  if(dut.hp_low || dut.hp!=124 || dut.gold!=30) $fatal(1,"normal rest semantics changed");
- if(dut.banner_v && dut.banner_addr==`MSG_DYING && cells[4*40+2][12:9]==5)
+ if(dut.banner_v && dut.banner_addr==`MSG_DYING && cells[4*40+2][12:9]==4)
    $display("REPRO_STALE_L1: normal rest healed hp=%0d gold=%0d; healthy ctx=%0d but visible MSG_DYING remains red, timer=%0d",dut.hp,dut.gold,dut.ctx_addr,dut.banner_tmr);
  else $display("FIXED_STALE_L1: healing dismissed low-health warning");
 `ifdef EXPECT_FIXED
@@ -67,7 +67,12 @@ module tb_message_edges;
 `ifdef EXPECT_FIXED
  if(last_start_pc!=dut.scr_addr) $fatal(1,"scene redraw request lost");
  // Real shop purchases, with one-time synthetic HP setup/recovery only.
- setup(); tap(2); tap(1); // map -> shop -> buy herb
+ setup();
+ @(negedge clk); key=2; @(negedge clk); key=0;
+ wait(dut.banner_v && dut.banner_pri==2'd3 && dut.banner_addr==`MSG_HINT);
+ wait(dut.banner_v && dut.banner_pri==2'd1 && dut.banner_addr==`MSG_ALERT && dut.queue_v && dut.queue_addr==`MSG_HINT);
+ wait(dut.banner_v && dut.banner_pri==2'd3 && dut.banner_addr==`MSG_HINT && !dut.queue_v);
+ tap(1); // buy herb after the low line has been covered and restored
  if(dut.banner_pri!=3 || dut.banner_addr!=`MSG_BUY) $fatal(1,"shop purchase L3 missing");
  @(negedge clk); dut.hp=20;
  idle();
@@ -79,7 +84,7 @@ module tb_message_edges;
  idle();
  if(!dut.banner_v || dut.banner_pri!=3 || dut.banner_addr!=`MSG_NOGOLD || dut.queue_v)
    $fatal(1,"recovery failed to restore latest queued L3");
- if(cells[27*40+2][12:9]!=4 || cells[27*40+2][8:0]!=dut.u_str.mem[`MSG_NOGOLD][8:0])
+ if(cells[27*40+2][12:9]!=0 || cells[27*40+2][8:0]!=dut.u_str.mem[`MSG_NOGOLD][8:0])
    $fatal(1,"restored L3 not visible through public cell writes");
  $display("PASS recovery restores latest queued L3 through public cell writes");
  // Boss timer is natural; kills is a lab-only readiness initial condition.
@@ -89,7 +94,7 @@ module tb_message_edges;
  idle();
  if(dut.hp_low || dut.banner_addr!=`MSG_BOSS || dut.banner_pri!=1)
    $fatal(1,"healthy HP incorrectly cancelled boss warning");
- if(cells[27*40+2][12:9]!=5 || cells[27*40+2][8:0]!=dut.u_str.mem[`MSG_BOSS][8:0])
+ if(cells[27*40+2][12:9]!=4 || cells[27*40+2][8:0]!=dut.u_str.mem[`MSG_BOSS][8:0])
    $fatal(1,"boss L1 not visible");
  tap(8); // normal scene change shop -> shop2 cleans banner and queue
  if(dut.scene!=8 || dut.banner_v || dut.side_v || dut.queue_v || dut.boss_arm)

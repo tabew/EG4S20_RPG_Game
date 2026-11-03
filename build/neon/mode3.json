@@ -1,0 +1,18 @@
+{
+  "mode": 3,
+  "passed": true,
+  "elapsed_seconds": 257.33,
+  "renderer_sha256": "08f98a6c60615431759edd36a684715813496a4a219719cb440a3e445819903b",
+  "method": "Actual production renderer+font+monster ROM; public cell writes and RGB/timing outputs, disabled effect baseline; no force or internal RAM writes.",
+  "statistics": {
+    "mode": 3,
+    "pixels": 1440000,
+    "interior": 1276800,
+    "outer": 163200,
+    "changed": 163200,
+    "bodychecks": 1458,
+    "silence_energy": 35640,
+    "loud_energy": 151373
+  },
+  "renderer_normalized_text_sha256": "741ba36761fbdcc9cf0b457a50135ecd68b276621573850f60c4b05bbcaf156c"
+}

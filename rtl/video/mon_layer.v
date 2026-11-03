@@ -18,6 +18,8 @@ module mon_layer (
     input  wire [3:0]  fade,        // 0=全黑 .. 8=原色
     input  wire [1:0]  rotation,    // clockwise quarter turns; open/X/Z -> 0
     input  wire        mirror,      // horizontal reflection AFTER rotation
+    input  wire signed [4:0] jx,    // 受击抖动，逻辑像素，正值让图往右偏
+    input  wire signed [4:0] jy,    // 正值让图往下偏
     input  wire [11:0] x,           // 当前像素坐标(与 rpg_video 同一拍)
     input  wire [11:0] y,
     output wire        in_win,      // 该像素在立绘窗口内
@@ -37,10 +39,15 @@ module mon_layer (
 
     wire [11:0] ax = x - X0;                           // 0..143
     wire [11:0] ay = y - Y0;
+    // 抖动只挪取样点，窗口仍钉在原处，文字和边框的混层不用改。
+    wire signed [12:0] axj = $signed({1'b0, ax}) - $signed(jx);
+    wire signed [12:0] ayj = $signed({1'b0, ay}) - $signed(jy);
+    wire [11:0] axc = axj[12] ? 12'd0 : ((axj > 13'sd143) ? 12'd143 : axj[11:0]);
+    wire [11:0] ayc = ayj[12] ? 12'd0 : ((ayj > 13'sd143) ? 12'd143 : ayj[11:0]);
     // 注意: 乘法必须显式给足位宽。写成 (ax * 12'd171) 时按 Verilog 规则
     // 结果只有 12 位, 乘积会被截断 —— 实测图像直接跑飞。
-    wire [31:0] sxm = ax * 32'd171;                    // ax/3 = (ax*171)>>9
-    wire [31:0] sym = ay * 32'd171;
+    wire [31:0] sxm = axc * 32'd171;                   // ax/3 = (ax*171)>>9
+    wire [31:0] sym = ayc * 32'd171;
     // Clamp blanking reads to the first byte of this monster. The transform
     // itself is only six-bit subtracts/muxes; retain the existing /3 scaler.
     wire [5:0] u = in_win0 ? sxm[14:9] : 6'd0;

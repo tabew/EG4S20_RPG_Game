@@ -12,6 +12,7 @@ module tb_mon_render_isolation;
    .clk(clk),.rst_n(rst_n),.we(we),.waddr(waddr),.wdata(wdata),
    .anim_on(1'b0),.anim_frame(3'd0),.mon_on(1'b1),.mon_id(5'd0),.mon_fade(4'd8),
    .mon_rotation(g==0?2'd0:rotation),.mon_mirror(g==0?1'b0:mirror),
+   .hit_trig(1'b0),.hit_kind(2'd0),
    .bars(64'd0),.gal_on(1'b0),.gal_img(2'd0),.gal_fade(4'd8),
    .tf_valid(1'b0),.tf_err(2'd0),.diag(8'd0),.diag2(8'd0),.dfill(1'b0),.tf_rdata(4'd0),.tf_raddr(tf_addr[g]),
    .media_mode(2'd2),.media_auto(1'b0),.media_settings(1'b0),.media_loading(1'b0),.media_osd(1'b0),

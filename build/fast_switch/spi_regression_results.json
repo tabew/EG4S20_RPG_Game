@@ -1,0 +1,236 @@
+[
+  {
+    "case": "mbr_spc1",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\mbr_spc1\\simulation.log"
+  },
+  {
+    "case": "mbr_spc2",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\mbr_spc2\\simulation.log"
+  },
+  {
+    "case": "mbr_spc4",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\mbr_spc4\\simulation.log"
+  },
+  {
+    "case": "mbr_spc8",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\mbr_spc8\\simulation.log"
+  },
+  {
+    "case": "mbr_spc16",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\mbr_spc16\\simulation.log"
+  },
+  {
+    "case": "mbr_spc32",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\mbr_spc32\\simulation.log"
+  },
+  {
+    "case": "mbr_spc64",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\mbr_spc64\\simulation.log"
+  },
+  {
+    "case": "mbr_spc128",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\mbr_spc128\\simulation.log"
+  },
+  {
+    "case": "super_spc1",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\super_spc1\\simulation.log"
+  },
+  {
+    "case": "super_spc2",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\super_spc2\\simulation.log"
+  },
+  {
+    "case": "super_spc4",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\super_spc4\\simulation.log"
+  },
+  {
+    "case": "super_spc8",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\super_spc8\\simulation.log"
+  },
+  {
+    "case": "super_spc16",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\super_spc16\\simulation.log"
+  },
+  {
+    "case": "super_spc32",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\super_spc32\\simulation.log"
+  },
+  {
+    "case": "super_spc64",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\super_spc64\\simulation.log"
+  },
+  {
+    "case": "super_spc128",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\super_spc128\\simulation.log"
+  },
+  {
+    "case": "vga_640x480",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\vga_640x480\\simulation.log"
+  },
+  {
+    "case": "exact_256x192",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\exact_256x192\\simulation.log"
+  },
+  {
+    "case": "rejected_128x96",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\rejected_128x96\\simulation.log"
+  },
+  {
+    "case": "fat_reserved_nibble",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\fat_reserved_nibble\\simulation.log"
+  },
+  {
+    "case": "short_fat_chain",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\short_fat_chain\\simulation.log"
+  },
+  {
+    "case": "topdown_padding",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\topdown_padding\\simulation.log"
+  },
+  {
+    "case": "high_cluster_fragmented",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\high_cluster_fragmented\\simulation.log"
+  },
+  {
+    "case": "directory_first_image",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\directory_first_image\\simulation.log"
+  },
+  {
+    "case": "directory_cluster_chain",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\directory_cluster_chain\\simulation.log"
+  },
+  {
+    "case": "truncated_pixels",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\truncated_pixels\\simulation.log"
+  },
+  {
+    "case": "smaller_width",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\smaller_width\\simulation.log"
+  },
+  {
+    "case": "smaller_height",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\smaller_height\\simulation.log"
+  },
+  {
+    "case": "existing_sd_test_bmp",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\existing_sd_test_bmp\\simulation.log"
+  },
+  {
+    "case": "bad_compression",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\bad_compression\\simulation.log"
+  },
+  {
+    "case": "bad_planes",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\bad_planes\\simulation.log"
+  },
+  {
+    "case": "bad_signature",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\bad_signature\\simulation.log"
+  },
+  {
+    "case": "bad_offset",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\bad_offset\\simulation.log"
+  },
+  {
+    "case": "bad_dib",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\bad_dib\\simulation.log"
+  },
+  {
+    "case": "bad_bpp",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\bad_bpp\\simulation.log"
+  },
+  {
+    "case": "bad_short_header",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\bad_short_header\\simulation.log"
+  },
+  {
+    "case": "spi",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\spi.log"
+  },
+  {
+    "case": "diag",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\diag.log"
+  },
+  {
+    "case": "display",
+    "passed": true,
+    "returncode": 0,
+    "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_fast_regression\\display.log"
+  }
+]

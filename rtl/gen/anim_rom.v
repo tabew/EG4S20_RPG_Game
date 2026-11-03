@@ -14,7 +14,7 @@ module anim_rom (
 );
     reg [7:0] mem [0:24575];
 
-    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/anim.hex", mem);
+    initial $readmemh("rtl/gen/anim.hex", mem);
 
     always @(posedge clk) data <= mem[addr];
 

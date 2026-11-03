@@ -1,0 +1,150 @@
+{
+  "passed": true,
+  "sectors_per_card": 64,
+  "results": [
+    {
+      "case": "baseline_6m25",
+      "passed": true,
+      "expected_timing_rejection": false,
+      "fast_div": 3,
+      "card_tco_ns": 14,
+      "miso_board_ns": 4,
+      "clock_board_ns": 0,
+      "mosi_board_ns": 0,
+      "measurements": [
+        {
+          "div": 3,
+          "hc": 1,
+          "sectors": 64,
+          "bytes": 32768,
+          "cycles": 2226368,
+          "ns": 44527360
+        },
+        {
+          "div": 3,
+          "hc": 0,
+          "sectors": 64,
+          "bytes": 32768,
+          "cycles": 2226368,
+          "ns": 44527360
+        }
+      ],
+      "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_timing\\baseline_6m25.log"
+    },
+    {
+      "case": "production_12m5",
+      "passed": true,
+      "expected_timing_rejection": false,
+      "fast_div": 1,
+      "card_tco_ns": 14,
+      "miso_board_ns": 4,
+      "clock_board_ns": 0,
+      "mosi_board_ns": 0,
+      "measurements": [
+        {
+          "div": 1,
+          "hc": 1,
+          "sectors": 64,
+          "bytes": 32768,
+          "cycles": 1147072,
+          "ns": 22941440
+        },
+        {
+          "div": 1,
+          "hc": 0,
+          "sectors": 64,
+          "bytes": 32768,
+          "cycles": 1147072,
+          "ns": 22941440
+        }
+      ],
+      "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_timing\\production_12m5.log"
+    },
+    {
+      "case": "production_clock_skew",
+      "passed": true,
+      "expected_timing_rejection": false,
+      "fast_div": 1,
+      "card_tco_ns": 14,
+      "miso_board_ns": 6,
+      "clock_board_ns": 4,
+      "mosi_board_ns": 0,
+      "measurements": [
+        {
+          "div": 1,
+          "hc": 1,
+          "sectors": 64,
+          "bytes": 32768,
+          "cycles": 1147072,
+          "ns": 22941440
+        },
+        {
+          "div": 1,
+          "hc": 0,
+          "sectors": 64,
+          "bytes": 32768,
+          "cycles": 1147072,
+          "ns": 22941440
+        }
+      ],
+      "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_timing\\production_clock_skew.log"
+    },
+    {
+      "case": "production_mosi_skew",
+      "passed": true,
+      "expected_timing_rejection": false,
+      "fast_div": 1,
+      "card_tco_ns": 14,
+      "miso_board_ns": 6,
+      "clock_board_ns": 0,
+      "mosi_board_ns": 4,
+      "measurements": [
+        {
+          "div": 1,
+          "hc": 1,
+          "sectors": 64,
+          "bytes": 32768,
+          "cycles": 1147072,
+          "ns": 22941440
+        },
+        {
+          "div": 1,
+          "hc": 0,
+          "sectors": 64,
+          "bytes": 32768,
+          "cycles": 1147072,
+          "ns": 22941440
+        }
+      ],
+      "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_timing\\production_mosi_skew.log"
+    },
+    {
+      "case": "candidate_25m_rejected",
+      "passed": true,
+      "expected_timing_rejection": true,
+      "fast_div": 0,
+      "card_tco_ns": 14,
+      "miso_board_ns": 4,
+      "clock_board_ns": 0,
+      "mosi_board_ns": 0,
+      "measurements": [],
+      "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\spi_timing\\candidate_25m_rejected.log"
+    }
+  ],
+  "speedups": [
+    {
+      "hc": 1,
+      "speedup": 1.9409139095017576,
+      "baseline_cycles": 2226368,
+      "production_cycles": 1147072
+    },
+    {
+      "hc": 0,
+      "speedup": 1.9409139095017576,
+      "baseline_cycles": 2226368,
+      "production_cycles": 1147072
+    }
+  ],
+  "minimum_speedup": 1.7,
+  "scope": "50MHz RTL simulation; no board signal-integrity or place-and-route qualification"
+}

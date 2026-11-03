@@ -1,0 +1,14 @@
+{
+  "production_source": "existing_PSG_BGM_plus_RPG_SFX_plus_image_chime",
+  "hdmi_pcm_input_enabled": true,
+  "diagnostic_1k_tone_selected_in_production": false,
+  "transport_sample_rate_hz": 48000,
+  "internal_synth_sample_rate_nominal_hz": 32000,
+  "internal_effective_bits": 8,
+  "signed_pcm16_gain": 64,
+  "lpcm_container_bits": 24,
+  "stereo_channels": "identical_mono_mix",
+  "long_K3": "global_mute_toggle",
+  "short_K3": "image_auto_pause_toggle_outside_settings",
+  "board_verified": false
+}

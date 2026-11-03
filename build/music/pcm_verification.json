@@ -1,0 +1,35 @@
+[
+  {
+    "pixel_hz": 25200000,
+    "video_id": 1,
+    "packets": 4200,
+    "stereo_samples": 1599,
+    "captures": 1600,
+    "intervals": {
+      "525": 1599
+    },
+    "muted_samples": 966,
+    "resumed_samples": 533,
+    "queued_before_mute_delivered_after": 2,
+    "decoded_video_pixels": 2878,
+    "overflow": 0,
+    "every_cycle_video_and_scan_equal": true
+  },
+  {
+    "pixel_hz": 40000000,
+    "video_id": 0,
+    "packets": 5024,
+    "stereo_samples": 1591,
+    "captures": 1591,
+    "intervals": {
+      "833": 1060,
+      "834": 530
+    },
+    "muted_samples": 961,
+    "resumed_samples": 530,
+    "queued_before_mute_delivered_after": 1,
+    "decoded_video_pixels": 3598,
+    "overflow": 0,
+    "every_cycle_video_and_scan_equal": true
+  }
+]

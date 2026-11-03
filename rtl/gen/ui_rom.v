@@ -19,7 +19,7 @@ module font_rom (
     output reg  [15:0] data
 );
     reg [15:0] mem [0:8191];
-    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/font.hex", mem);
+    initial $readmemh("C:/Users/Tab_E/Downloads/EG4S20_RPG_Game-main/rtl/gen/font.hex", mem);
     always @(posedge clk) data <= mem[{glyph, row}];
 endmodule
 
@@ -29,7 +29,7 @@ module cmd_rom (
     output reg  [31:0] data
 );
     reg [31:0] mem [0:511];
-    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/cmd.hex", mem);
+    initial $readmemh("C:/Users/Tab_E/Downloads/EG4S20_RPG_Game-main/rtl/gen/cmd.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -39,7 +39,7 @@ module str_rom (
     output reg  [15:0] data
 );
     reg [15:0] mem [0:1023];
-    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/str.hex", mem);
+    initial $readmemh("C:/Users/Tab_E/Downloads/EG4S20_RPG_Game-main/rtl/gen/str.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -49,7 +49,7 @@ module art_rom (
     output reg  [7:0]  data
 );
     reg [7:0] mem [0:4095];
-    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/art.hex", mem);
+    initial $readmemh("C:/Users/Tab_E/Downloads/EG4S20_RPG_Game-main/rtl/gen/art.hex", mem);
     always @(posedge clk) data <= mem[addr];
 endmodule
 
@@ -68,42 +68,28 @@ module rpg_tables (
 );
     always @(*) begin
         case (ename_id)
-      5'd0: ename = 63'h0000000000AC5429;
-      5'd1: ename = 63'h0000000000005A2C;
-      5'd2: ename = 63'h0000000000005E2E;
-      5'd3: ename = 63'h0000000000006230;
-      5'd4: ename = 63'h0000000190AC5429;
-      5'd5: ename = 63'h0000000000006833;
-      5'd6: ename = 63'h0000000000006C35;
-      5'd7: ename = 63'h0000000000007037;
-      5'd8: ename = 63'h0000000000007439;
-      5'd9: ename = 63'h000003F1F0F4783B;
-      5'd10: ename = 63'h0000000000008240;
-      5'd11: ename = 63'h0000000001108642;
-      5'd12: ename = 63'h00000002411C8C45;
-      5'd13: ename = 63'h00000001C12C9449;
-      5'd14: ename = 63'h0000000209309245;
-      5'd15: ename = 63'h00000000013C9C4D;
-      5'd16: ename = 63'h0000000291448450;
-      5'd17: ename = 63'h000000000150A64D;
-      5'd18: ename = 63'h000000000158AA33;
-      5'd19: ename = 63'h0000000191048450;
-      5'd20: ename = 63'h00000002D164B057;
-      5'd21: ename = 63'h000000000174B85B;
-      5'd22: ename = 63'h000000000000BE5E;
-      5'd23: ename = 63'h000000000000C047;
-      5'd24: ename = 63'h00000003218CC461;
+      5'd0: ename = 63'h0000000000005429;
+      5'd1: ename = 63'h000000000000582B;
+      5'd2: ename = 63'h0000031180BC5C2D;
+      5'd3: ename = 63'h0000000000006632;
+      5'd4: ename = 63'h00000001B8D86A34;
+      5'd5: ename = 63'h0000000198E47034;
+      5'd6: ename = 63'h0000000000F0763A;
+      5'd7: ename = 63'h0000000200FC7C3D;
+      5'd8: ename = 63'h0000000208CC7C3D;
+      5'd9: ename = 63'h0000000229108642;
+      5'd10: ename = 63'h0000000000008E46;
+      5'd11: ename = 63'h0000000259289248;
         default: ename = 63'd0;
         endcase
     end
 
     always @(*) begin
         case (area_id)
-      4'd0: area_name = 54'h000003419CCC65;
-      4'd1: area_name = 54'h000001E0ECD469;
-      4'd2: area_name = 54'h0000024914D86B;
-      4'd3: area_name = 54'h00000001B8DA4D;
-      4'd4: area_name = 54'h00000391C4E06F;
+      4'd0: area_name = 54'h00000170B49A4C;
+      4'd1: area_name = 54'h000001C0D09E4E;
+      4'd2: area_name = 54'h0000000144A03A;
+      4'd3: area_name = 54'h000002A950A652;
         default: area_name = 54'd0;
         endcase
     end
@@ -111,41 +97,27 @@ module rpg_tables (
     always @(*) begin
         case (area_id)
       3'd0: adesc = 11'd593;
-      3'd1: adesc = 11'd637;
-      3'd2: adesc = 11'd683;
-      3'd3: adesc = 11'd736;
-      3'd4: adesc = 11'd783;
+      3'd1: adesc = 11'd623;
+      3'd2: adesc = 11'd653;
+      3'd3: adesc = 11'd683;
         default: adesc = 55'd0;
         endcase
     end
 
     always @(*) begin
         case (stat_id)
-      5'd0: es = 64'h0000007024082024;
-      5'd1: es = 64'h0041006020042C1E;
-      5'd2: es = 64'h008F00501C04281C;
-      5'd3: es = 64'h00D0006020003018;
-      5'd4: es = 64'h012A05A1181C3087;
-      5'd5: es = 64'h014200D048103C42;
-      5'd6: es = 64'h0183010058203456;
-      5'd7: es = 64'h01C40130680C503A;
-      5'd8: es = 64'h021101206428445C;
-      5'd9: es = 64'h026B0AA2082C50FA;
-      5'd10: es = 64'h028501B088344484;
-      5'd11: es = 64'h02D301D09020606C;
-      5'd12: es = 64'h031201F098285878;
-      5'd13: es = 64'h035401C088186860;
-      5'd14: es = 64'h03AC1183984471A4;
-      5'd15: es = 64'h03C60260C03064D4;
-      5'd16: es = 64'h040702E0E8505D18;
-      5'd17: es = 64'h045502C0E0247CC4;
-      5'd18: es = 64'h04960290D01C88B0;
-      5'd19: es = 64'h04ED1C26405C9280;
-      5'd20: es = 64'h050803E1284C7D7C;
-      5'd21: es = 64'h054904614830A140;
-      5'd22: es = 64'h05970441403C915E;
-      5'd23: es = 64'h05D804213828AD2C;
-      5'd24: es = 64'h062E4B0E1060A348;
+      5'd0: es = 64'h0003010058203456;
+      5'd1: es = 64'h005101206428445C;
+      5'd2: es = 64'h00AB0AA2082C50FA;
+      5'd3: es = 64'h00C501B088344484;
+      5'd4: es = 64'h011201F098285878;
+      5'd5: es = 64'h016C1183984471A4;
+      5'd6: es = 64'h01860260C03064D4;
+      5'd7: es = 64'h01C702E0E8505D18;
+      5'd8: es = 64'h022D1C26405C9280;
+      5'd9: es = 64'h024803E1284C7D7C;
+      5'd10: es = 64'h02970441403C915E;
+      5'd11: es = 64'h02EE4B0E1060A348;
         default: es = 64'd0;
         endcase
     end
@@ -165,11 +137,10 @@ module rpg_area (
     reg [24:0] am;
     always @(*) begin
         case (area)
-      3'd0: am = 25'h0418820;
-      3'd1: am = 25'h0941CC5;
-      3'd2: am = 25'h0E6B16A;
-      3'd3: am = 25'h139460F;
-      3'd4: am = 25'h18BDAB4;
+      3'd0: am = 25'h0208020;
+      3'd1: am = 25'h0520C83;
+      3'd2: am = 25'h08398E6;
+      3'd3: am = 25'h0B52549;
         default: am = 25'd0;
         endcase
         mob0 = am[4:0];
@@ -216,29 +187,25 @@ module rpg_ctx (
         case ({area, varq})
             {3'd0, 2'd0}: ctx = 11'd593;
             {3'd0, 2'd1}: ctx = 11'd602;
-            {3'd0, 2'd2}: ctx = 11'd620;
-            {3'd1, 2'd0}: ctx = 11'd637;
-            {3'd1, 2'd1}: ctx = 11'd646;
-            {3'd1, 2'd2}: ctx = 11'd664;
-            {3'd2, 2'd0}: ctx = 11'd683;
-            {3'd2, 2'd1}: ctx = 11'd692;
-            {3'd2, 2'd2}: ctx = 11'd716;
-            {3'd3, 2'd0}: ctx = 11'd736;
-            {3'd3, 2'd1}: ctx = 11'd745;
-            {3'd3, 2'd2}: ctx = 11'd764;
-            {3'd4, 2'd0}: ctx = 11'd783;
-            {3'd4, 2'd1}: ctx = 11'd793;
-            {3'd4, 2'd2}: ctx = 11'd813;
+            {3'd0, 2'd2}: ctx = 11'd614;
+            {3'd1, 2'd0}: ctx = 11'd623;
+            {3'd1, 2'd1}: ctx = 11'd632;
+            {3'd1, 2'd2}: ctx = 11'd644;
+            {3'd2, 2'd0}: ctx = 11'd653;
+            {3'd2, 2'd1}: ctx = 11'd662;
+            {3'd2, 2'd2}: ctx = 11'd673;
+            {3'd3, 2'd0}: ctx = 11'd683;
+            {3'd3, 2'd1}: ctx = 11'd692;
+            {3'd3, 2'd2}: ctx = 11'd703;
             default: ctx = 11'd0;
         endcase
     end
     always @(*) begin
         case (area)
             3'd0: danger = 11'd0;
-            3'd1: danger = 11'd0;
-            3'd2: danger = 11'd832;
-            3'd3: danger = 11'd844;
-            3'd4: danger = 11'd856;
+            3'd1: danger = 11'd712;
+            3'd2: danger = 11'd722;
+            3'd3: danger = 11'd732;
             default: danger = 11'd0;
         endcase
     end

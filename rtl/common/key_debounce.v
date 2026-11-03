@@ -333,11 +333,11 @@ module sound #(
     // 音高表 / BGM 表
     //---------------------------------------------------------
     reg [23:0] pitch [0:127];
-    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/pitch.hex", pitch);
+    initial $readmemh("rtl/gen/pitch.hex", pitch);
 
     // 三首 BGM 共 192 步: 轨 0=探索(0..63) 轨 1=战斗(64..127) 轨 2=胜利(128..191)
     reg [31:0] mus [0:191];
-    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/music.hex", mus);
+    initial $readmemh("rtl/gen/music.hex", mus);
 
     reg [31:0] mdat;
     reg [7:0]  mptr;
@@ -1399,7 +1399,8 @@ module sd_img #(
     output reg  [15:0] src_width, src_height,
     output reg fb_start, fb_pixel_valid,
     output reg [18:0] fb_pixel_addr,
-    output reg [23:0] fb_pixel_data
+    output reg [23:0] fb_pixel_data,
+    output reg fb_half
 );
 
     // Original diagnostic state numbers 0..14 are retained.
@@ -1594,7 +1595,7 @@ module sd_img #(
 
     // ---- 调色板映射 ROM (4096 x 4bit, tools/gen_tfmap.py 生成) ----
     reg  [3:0]  cmap [0:4095];
-    initial $readmemh("D:/EG4S20_RPG_Game-main/rtl/gen/tf_map.hex", cmap);
+    initial $readmemh("rtl/gen/tf_map.hex", cmap);
     wire [11:0] cm_a = {dout[7:4], greg[7:4], breg[7:4]};   // R,G,B 高 4 位
     wire [3:0]  cidx = cmap[cm_a];
 
@@ -1637,8 +1638,17 @@ module sd_img #(
     wire [1:0]  padsz    = rowsize[1:0] - rowbytes[1:0];
     wire [16:0] accx_sum = accx + 17'd256;
     wire [16:0] accy_sum = accy + 18'd192;
-    wire [8:0] raw_y = hneg ? row_cnt[8:0] : 9'd479-row_cnt[8:0];
-    wire [18:0] raw_addr = {raw_y,9'b0}+{raw_y,7'b0}+{3'd0,x};
+    wire [8:0] half_y = hneg ? row_cnt[8:0] : (9'd239 - row_cnt[8:0]);
+    wire [18:0] half_addr = {half_y, x[9:0]};
+    // 大于 640x480 的图不缩小。取正中 640x480，每个屏幕点仍是原图像素。
+    wire [15:0] origin_x = (wpx[15:0] - 16'd640) >> 1;
+    wire [15:0] origin_y = (habs[15:0] - 16'd480) >> 1;
+    wire [15:0] image_y = hneg ? row_cnt[15:0] : (habs[15:0] - 16'd1 - row_cnt[15:0]);
+    wire in_win = (wpx >= 32'd640) && (x >= origin_x) && (x < origin_x + 16'd640) &&
+                  (image_y >= origin_y) && (image_y < origin_y + 16'd480);
+    wire [15:0] rel_x = x - origin_x;
+    wire [15:0] rel_y = image_y - origin_y;
+    wire [18:0] crop_addr = {rel_y[8:0],9'b0} + {rel_y[8:0],7'b0} + rel_x[9:0];
     wire [31:0] fat_next = {4'd0, fatent[27:0]};
 
     //---------------------------------------------------------
@@ -1646,7 +1656,7 @@ module sd_img #(
     //---------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            fb_start<=0;fb_pixel_valid<=0;fb_pixel_addr<=0;fb_pixel_data<=0;
+            fb_start<=0;fb_pixel_valid<=0;fb_pixel_addr<=0;fb_pixel_data<=0;fb_half<=0;
             state    <= S_W0;
             chain    <= CH_ROOT;
             cat_start <= 1'b0;
@@ -1979,16 +1989,21 @@ module sd_img #(
                                     32'd32: compression[23:16] <= dout;
                                     32'd33: compression[31:24] <= dout;
                                     32'd53: begin
-                                        // BITMAPINFOHEADER 或更长头; 当前仅支持缩小到256x192。
+                                        // 24 位无压缩。640x480 原样；更大的图取中心原像素；320x240 再放大。
                                         if (sig0 == 8'h42 && sig1 == 8'h4D &&
                                             bpp_hi == 8'h00 && bpp_lo == 8'h18 &&
                                             dibsz >= 32'd40 && planes == 16'd1 && compression == 32'd0 &&
                                             pixoff >= 32'd54 && pixoff < esz && dibsz <= pixoff - 32'd14 &&
-                                            ((FULL_FRAME!=0 && wpx==32'd640 && habs_c==32'd480) ||
+                                            ((FULL_FRAME!=0 && ((wpx>=32'd640 && wpx<=32'd4096 &&
+                                                                 habs_c>=32'd480 && habs_c<=32'd4096) ||
+                                                                (wpx==32'd320 && habs_c==32'd240))) ||
                                              (FULL_FRAME==0 && wpx>=32'd256 && wpx<=32'd65535 &&
                                               habs_c>=32'd192 && habs_c<=32'd65535))) begin
                                             hdr_ok  <= 1'b1;
-                                            if(wpx==640 && habs_c==480) fb_start<=1;
+                                            fb_half <= (wpx==32'd320 && habs_c==32'd240);
+                                            if(FULL_FRAME!=0 && ((wpx>=32'd640 && wpx<=32'd4096 &&
+                                                                  habs_c>=32'd480 && habs_c<=32'd4096) ||
+                                                                 (wpx==32'd320 && habs_c==32'd240))) fb_start<=1;
                                             hneg    <= hpx[31];
                                             habs    <= habs_c;
                                             rowsize <= ({wpx[30:0],1'b0} + wpx + 32'd3) & ~32'd3;
@@ -2010,8 +2025,12 @@ module sd_img #(
                                         tw_addr<= {rowty, tx};
                                         tw_data<= cidx;
                                         tw_wren<= 1'b1;
-                                        if(wpx==640 && habs==480) begin
-                                            fb_pixel_addr<=raw_addr;
+                                        if(in_win) begin
+                                            fb_pixel_addr<=crop_addr;
+                                            fb_pixel_data<={dout,greg,breg};
+                                            fb_pixel_valid<=1;
+                                        end else if(fb_half) begin
+                                            fb_pixel_addr<=half_addr;
                                             fb_pixel_data<={dout,greg,breg};
                                             fb_pixel_valid<=1;
                                         end
@@ -2328,6 +2347,7 @@ module media_ctrl #(
     output reg [5:0] load_index,
     output reg [1:0] media_mode,
     output reg media_auto, media_settings, media_osd, media_visual, media_mute,
+    output wire media_alert,
     output reg [3:0] media_brightness,
     output reg [1:0] media_contrast, media_view,
     output reg [3:0] gal_fade,
@@ -2343,6 +2363,8 @@ module media_ctrl #(
     reg [5:0] manual_pending_target, manual_cursor;
     reg manual_unresolved;
     reg signed [15:0] manual_unresolved_target;
+    reg [15:0] alert_tmr;
+    assign media_alert = alert_tmr != 16'd0;
     // Every manual click is acknowledged now, even if the loader is occupied.
     wire manual_key = gal_on && !media_settings && !longs[3] &&
         !keys[3] && !keys[2] && (keys[0] || keys[1]);
@@ -2375,6 +2397,7 @@ module media_ctrl #(
             manual_pending_valid<=0; manual_cursor_valid<=0;
             manual_pending_target<=0; manual_cursor<=0;
             manual_unresolved<=0; manual_unresolved_target<=0;
+            alert_tmr<=0;
         end else begin
             load_req<=0; cancel_req<=0;
             if(load_done) begin
@@ -2382,6 +2405,7 @@ module media_ctrl #(
                 if(!manual_pending_valid) manual_cursor_valid<=0;
             end
             if(frame_tick && lock_count!=0) lock_count<=lock_count-1'b1;
+            if(frame_tick && alert_tmr!=0) alert_tmr<=alert_tmr-1'b1;
             // Processing loader completions remains active while RPG owns video.
             case(state)
                 C_BOOT: begin
@@ -2482,7 +2506,10 @@ module media_ctrl #(
                     else if(cat_ready) state<=C_OUT;
                 end else media_settings<=!media_settings;
             end else if(gal_on) begin
-                if(longs[0]) media_osd<=!media_osd;
+                if(longs[0]) begin
+                    alert_tmr<=FPS*4;
+                    media_osd<=1'b1;
+                end
                 if(longs[1]) media_visual<=!media_visual;
                 if(media_settings) begin
                     if(keys[0]) media_brightness<=(media_brightness==8)?0:media_brightness+1'b1;

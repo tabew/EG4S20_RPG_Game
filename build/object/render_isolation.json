@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "returncode": 0,
+  "verilog": "2001",
+  "public_pixel_and_sync_only": true,
+  "pixel_clock_profile": "CEA640x480p60",
+  "frames": 8,
+  "pixels_per_frame": 307200,
+  "checks": "outside144x144 equality, independent font oracle inside window, all8 rotation/mirror combinations",
+  "dut_internal_writes": false
+}

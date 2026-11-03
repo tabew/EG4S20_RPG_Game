@@ -1,0 +1,14 @@
+{
+  "FFT_points": 256,
+  "audio_sample_rate": 48000,
+  "frequency_bin_hz": 187.5,
+  "bands": 8,
+  "real_PCM_source": true,
+  "render_pixel_comparisons": 14169600,
+  "content_area_unchanged": true,
+  "full_audio_decay_proof": "baseline compiled source; final RAM implementation cycle-equivalent plus new top benchmark",
+  "final_RAM_version_DFT_frames": 99,
+  "final_RAM_version_cycle_equivalence_checks": 2553399,
+  "board_verified": false,
+  "flash_programmed": false
+}

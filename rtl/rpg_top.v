@@ -101,6 +101,7 @@ module rpg_top #(
     wire [1:0] m_error;
     wire [5:0] m_count,m_seq_count,m_shown;
     wire [63:0] m_name;
+    wire media_alert;
     assign gal_img=m_shown[1:0];
     media_ctrl #(.VISUAL_DEFAULT(0)) u_media (
         .clk(clk_pix),.rst_n(rst_n),.frame_tick(frame_tick),.keys(kpress),.longs(klong),
@@ -108,7 +109,7 @@ module rpg_top #(
         .image_error(m_error),.file_count(m_count),.seq_count(m_seq_count),.shown_index(m_shown),
         .req_ready(media_req_ready),.fb_front_valid(fb_front_valid),.load_req(media_req),.cancel_req(media_cancel),.load_index(media_req_index),
         .media_mode(media_mode),.media_auto(media_auto),.media_settings(media_settings),
-        .media_osd(media_osd),.media_visual(media_visual),.media_mute(media_mute),
+        .media_osd(media_osd),.media_visual(media_visual),.media_mute(media_mute),.media_alert(media_alert),
         .media_brightness(media_brightness),.media_contrast(media_contrast),.media_view(media_view),
         .gal_fade(gal_fade),.gal_on(gal_on),.gal_block(gal_block),.media_loading(media_loading)
     );
@@ -177,8 +178,9 @@ module rpg_top #(
     wire [5:0] sd_load_index,sd_file_count,sd_seq_count,sd_shown_index;
     wire [63:0] sd_shown_name;
     wire fb_start,fb_raw_valid,fb_raw_ready,fb_frame_done,fb_frame_ok,fb_s_front_valid,fb_busy,fb_underrun;
-    wire [18:0] fb_raw_addr;
-    wire [23:0] fb_raw_data;
+    wire fb_half,fb_up_valid,fb_scale_done;
+    wire [18:0] fb_raw_addr,fb_up_addr;
+    wire [23:0] fb_raw_data,fb_up_data;
     wire [3:0] fb_errors;
     wire fb_frame_end,fb_frame_abort,publication_pending,published_valid,published_done;
     wire [1:0] published_error;
@@ -194,7 +196,7 @@ module rpg_top #(
         .file_count(sd_file_count),.seq_count(sd_seq_count),.shown_index(sd_shown_index),
         .shown_name(sd_shown_name),.cat_ready(sd_cat_ready),.busy(sd_image_busy),.load_done(sd_load_done),
         .src_width(),.src_height(),
-        .fb_start(fb_start),.fb_pixel_valid(fb_raw_valid),.fb_pixel_addr(fb_raw_addr),.fb_pixel_data(fb_raw_data),
+        .fb_start(fb_start),.fb_pixel_valid(fb_raw_valid),.fb_pixel_addr(fb_raw_addr),.fb_pixel_data(fb_raw_data),.fb_half(fb_half),
         .init_go   (sd_init_go),
         .init_done (sd_init_done),
         .init_err  (sd_init_err),
@@ -212,6 +214,14 @@ module rpg_top #(
         .dsel      (ds_sel),
         .dbg       (sd_dbus50)
     );
+    // 320x240 在写进 640x480 帧之前按最近邻铺成 2x2。640x480 原样通过。
+    fb_nearest2x u_scale (
+        .clk(clk_mem50), .rst_n(rst_n50), .half(fb_half), .start(fb_start),
+        .in_valid(fb_raw_valid), .in_addr(fb_raw_addr), .in_data(fb_raw_data),
+        .out_ready(fb_raw_ready), .load_done_in(sd_load_done),
+        .out_valid(fb_up_valid), .out_addr(fb_up_addr), .out_data(fb_up_data),
+        .load_done_out(fb_scale_done)
+    );
 
 
     wire [15:0] tf_raddr;     // 16位: 256x192
@@ -224,7 +234,7 @@ module rpg_top #(
         .sclk(clk_mem50),.phy_clk(clk_sdram50),.srst_n(rst_n50),.pclk(clk_pix),.prst_n(rst_n),
         .cache_mode(1'b1),.write_bank(cache_write_bank),.swap_only(cache_swap_only),.swap_bank(cache_swap_bank),.s_front_bank(fb_front_bank),
         .view_mode(media_view),.view_active(fb_view_active),
-        .frame_begin(fb_start),.pixel_wr_valid(fb_raw_valid),.pixel_wr_addr(fb_raw_addr),.pixel_wr_data(fb_raw_data),
+        .frame_begin(fb_start),.pixel_wr_valid(fb_up_valid),.pixel_wr_addr(fb_up_addr),.pixel_wr_data(fb_up_data),
         .pixel_wr_ready(fb_raw_ready),.frame_end(fb_frame_end),.frame_abort(fb_frame_abort),
         .s_ready(fb_ready),.frame_done(fb_frame_done),.frame_ok(fb_frame_ok),.s_front_valid(fb_s_front_valid),
         .busy(fb_busy),.error_flags(fb_errors),.frame_tick(frame_tick),.pixel_req(fb_pixel_req),
@@ -234,7 +244,7 @@ module rpg_top #(
     // Hits select an existing bank at vblank without a TF read or image rewrite.
     media_frame_cache u_frame_cache(
         .clk(clk_mem50),.rst_n(rst_n50),.request_go(sd_load_go),.request_index(sd_load_index),.cancel_go(sd_cancel_go),
-        .cat_ready(sd_cat_ready),.raw_busy(sd_image_busy),.raw_done(sd_load_done),.raw_cancelled(sd_load_cancelled),
+        .cat_ready(sd_cat_ready),.raw_busy(sd_image_busy),.raw_done(fb_scale_done),.raw_cancelled(sd_load_cancelled),
         .raw_valid(tf_valid50),.raw_error(tf_err50),.raw_index(sd_shown_index),.raw_name(sd_shown_name),
         .frame_begin(fb_start),.frame_done(fb_frame_done),.frame_ok(fb_frame_ok),.front_valid(fb_s_front_valid),.front_bank(fb_front_bank),
         .decode_go(sd_decode_go),.decode_index(cache_decode_index),.write_bank(cache_write_bank),
@@ -296,6 +306,8 @@ module rpg_top #(
     wire [10:0] waddr;
     wire [16:0] wdata;
     wire [3:0]  sfx_id;
+    wire        hit_trig;
+    wire [1:0]  hit_kind;
     wire        sfx_trig;
     wire [3:0]  ui_state;          // 当前场景: 0标题 1选职业 2地图 3战斗 4商店 5死亡 6通关 7插图 8二页商店
     wire [1:0] mon_rotation;
@@ -307,10 +319,16 @@ module rpg_top #(
         .rotation(mon_rotation),.mirror(mon_mirror)
     );
 
+    wire level1_on;
+    wire show_alert = media_alert || level1_on;
+    // 战斗里长按 K1 仍转怪物，同时出 1 级通告。标题页没有字幕行，靠红条能看见。
+    wire emergency_key = klong[0] && !gal_on && !gal_block;
     rpg_core u_core (
         .clk   (clk_pix),
         .rst_n (rst_n),
         .key   (key_core),
+        .emergency(emergency_key),
+        .level1_on(level1_on),
         .we    (we),
         .waddr (waddr),
         .wdata (wdata),
@@ -321,6 +339,8 @@ module rpg_top #(
         .mon_fade   (mon_fade),
         .sfx_id     (sfx_id),
         .sfx_trig   (sfx_trig),
+        .hit_trig   (hit_trig),
+        .hit_kind   (hit_kind),
         .dbg_scene  (ui_state)
     );
 
@@ -357,6 +377,7 @@ module rpg_top #(
         .mon_id     (mon_id),
         .mon_fade   (mon_fade),
         .mon_rotation(mon_rotation),.mon_mirror(mon_mirror),
+        .hit_trig(hit_trig),.hit_kind(hit_kind),
         .spectrum_border_en(!gal_on && ui_state==4'd3),.spectrum_levels(spectrum_levels),
         .bars       (media_mute ? 64'd0 : spec),
         .gal_on     (gal_on),
@@ -364,6 +385,7 @@ module rpg_top #(
         .media_loading(media_loading),.media_osd(media_osd),.media_visual(media_visual),
         .media_index(m_shown),.media_count(m_count),.media_name(m_name),
         .media_brightness(media_brightness),.media_contrast(media_contrast),.media_view(fb_view_active),
+        .media_alert(show_alert),
         .frame_tick(frame_tick),
         .gal_img    (gal_img),
         .gal_fade   (gal_fade),
@@ -677,3 +699,98 @@ module mon_transform_ctrl (
     end
 endmodule
 // MON_TRANSFORM_CTRL_END
+
+// 320x240 最近邻到 640x480。源地址打包成 {行[8:0], 列[9:0]}。
+// 640x480 不经过这里的状态机。完成脉冲一直压到最后一个放大像素被收下。
+// 与 rtl/video/fb_nearest2x.vh 保持同一份逻辑，仿真直接编译那个文件。
+module fb_nearest2x (
+    input  wire        clk,
+    input  wire        rst_n,
+    input  wire        half,
+    input  wire        start,
+    input  wire        in_valid,
+    input  wire [18:0] in_addr,
+    input  wire [23:0] in_data,
+    input  wire        out_ready,
+    input  wire        load_done_in,
+    output wire        out_valid,
+    output wire [18:0] out_addr,
+    output wire [23:0] out_data,
+    output wire        load_done_out
+);
+    reg        half_run;
+    reg        phase_on;
+    reg [1:0]  phase;
+    reg [8:0]  sy;
+    reg [9:0]  sx;
+    reg [23:0] pix;
+    reg        hold_valid;
+    reg [8:0]  hold_sy;
+    reg [9:0]  hold_sx;
+    reg [23:0] hold_pix;
+    reg        done_hold;
+
+    wire [9:0]  sy2 = {sy, 1'b0};
+    wire [10:0] sx2 = {sx, 1'b0};
+    wire [18:0] base = {sy2, 9'b0} + {2'b0, sy2, 7'b0} + {8'b0, sx2};
+    wire [18:0] step = (phase==2'd1) ? 19'd1 :
+                       (phase==2'd2) ? 19'd640 :
+                       (phase==2'd3) ? 19'd641 : 19'd0;
+    wire accept = half_run && phase_on && out_ready;
+    wire finishing = accept && (phase==2'd3);
+
+    assign out_valid = half_run ? accept : in_valid;
+    assign out_addr  = half_run ? (base + step) : in_addr;
+    assign out_data  = half_run ? pix : in_data;
+    assign load_done_out = half_run ? (done_hold && !phase_on && !hold_valid && !in_valid)
+                                    : load_done_in;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            half_run<=1'b0; phase_on<=1'b0; phase<=2'd0;
+            sy<=9'd0; sx<=10'd0; pix<=24'd0;
+            hold_valid<=1'b0; hold_sy<=9'd0; hold_sx<=10'd0; hold_pix<=24'd0;
+            done_hold<=1'b0;
+        end else if (start) begin
+            half_run<=half;
+            phase_on<=1'b0; phase<=2'd0; hold_valid<=1'b0; done_hold<=1'b0;
+        end else if (half_run) begin
+            if (load_done_in) done_hold<=1'b1;
+            if (finishing) begin
+                phase<=2'd0;
+                if (hold_valid) begin
+                    sy<=hold_sy; sx<=hold_sx; pix<=hold_pix;
+                    if (in_valid) begin
+                        hold_sy<=in_addr[18:10];
+                        hold_sx<=in_addr[9:0];
+                        hold_pix<=in_data;
+                    end else hold_valid<=1'b0;
+                end else if (in_valid) begin
+                    sy<=in_addr[18:10]; sx<=in_addr[9:0]; pix<=in_data;
+                    phase_on<=1'b1;
+                end else phase_on<=1'b0;
+            end else if (accept) begin
+                phase<=phase+2'd1;
+                if (in_valid && !hold_valid) begin
+                    hold_sy<=in_addr[18:10];
+                    hold_sx<=in_addr[9:0];
+                    hold_pix<=in_data;
+                    hold_valid<=1'b1;
+                end
+            end else if (!phase_on && hold_valid) begin
+                sy<=hold_sy; sx<=hold_sx; pix<=hold_pix;
+                phase<=2'd0; phase_on<=1'b1;
+                if (in_valid) begin
+                    hold_sy<=in_addr[18:10];
+                    hold_sx<=in_addr[9:0];
+                    hold_pix<=in_data;
+                end else hold_valid<=1'b0;
+            end else if (!phase_on && in_valid) begin
+                sy<=in_addr[18:10]; sx<=in_addr[9:0]; pix<=in_data;
+                phase<=2'd0; phase_on<=1'b1;
+            end
+            if (done_hold && !phase_on && !hold_valid && !in_valid && !accept)
+                done_hold<=1'b0;
+        end
+    end
+endmodule

@@ -1,0 +1,7 @@
+{
+  "mode": 1,
+  "passed": true,
+  "elapsed_seconds": 72.36,
+  "renderer_sha256": "741ba36761fbdcc9cf0b457a50135ecd68b276621573850f60c4b05bbcaf156c",
+  "method": "Actual production renderer+font+monster ROM; public cell writes and RGB/timing outputs, disabled effect baseline; no force or internal RAM writes."
+}

@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "returncode": 0,
+  "bench": false,
+  "elapsed_seconds": 707.078,
+  "timed_out": false,
+  "log": "D:\\EG4S20_RPG_Game-main\\sim\\sd\\out\\audio_spectrum_top\\full.log",
+  "statistics": {
+    "cycles": 5388040,
+    "sample_ticks": 10262,
+    "frame_valid_count": 40,
+    "captured_blocks": 40,
+    "muted_sample_ticks": 9216,
+    "nonzero_sample_ticks": 1027,
+    "fifo_checks": 10262,
+    "fft_capture_checks": 10262,
+    "pure_zero_blocks_to_zero": 35,
+    "derived_mute_bound": 35,
+    "mute_publications": 36,
+    "resume_nonzero_samples": 496,
+    "resume_nonzero_bands": 8
+  },
+  "clock": {
+    "sim_behav_passes_reference": true,
+    "input_named_clk50_actual_period_ns": 39.682,
+    "actual_pixel_hz": 25200342.724661052,
+    "nominal_pixel_hz": 25200000,
+    "sample_interval_pixel_cycles": 525,
+    "fft_block_sample_count": 256,
+    "fft_publication_interval_pixel_cycles": 134400
+  },
+  "method": "Unmodified production rpg_top; public reset/raw key_n[1] drive only; passive hierarchical capture checks each real encoder tick; only u_k2 CLK_KHZ=20 DEB_MS=1 HOLD_MS=8 accelerated; sd_miso=1/no card; reference classifies zero blocks from actual PCM; exact decay checked per band and observation-derived bound; no force or hierarchical writes.",
+  "scope": "PSG -> HDMI FIFO and FFT capture/mute/decay/resume; production HDMI packet/video logic runs; border rendering and board physical output are outside this test.",
+  "production_source_sha256": {
+    "rtl/common/key_debounce.v": "23c4ad57b7564bfcd49c03879299c4f1f53ba14247a211e2835111e68174a619",
+    "rtl/rpg_top.v": "aedd7237e745f1730b05723afa15ae794a77ba28af74c768a4abe1d67945f13e",
+    "rtl/clk_gen.v": "135b13aef830f6c9755d3f68b6087456c31f12ea04a1a5c163f2051ebeebbf18",
+    "rtl/common/reset_sync.v": "af3afb4a78b1c6459cf777c834f7fd5ea08974a8d7e3c13afede6f5c83a0c11a",
+    "rtl/ctrl/rpg_core.v": "d6d292058084821bd133c8f5eb01f1eb504af9b0dd5079a5379873118aceb485",
+    "rtl/gen/rpg_msgs.v": "8d1aad9e46c590bc05db820ee4894d19a83b825cc116e26c493a2f53a79261ca",
+    "rtl/gen/ui_rom.v": "44432bd259b80e05eaec87b883c934c2fda7bf3bd94d42d15d49ae25e53c3b1b",
+    "rtl/gen/anim_rom.v": "dc17ac785e969786737266aceea9281fa48351f7ef9975c3fd61f71ee6c760f6",
+    "rtl/gen/mon_rom.v": "ba97ce74dddd2915df33b4967cb64844f57d84a8554e6c9d90dff9bc9c46725d",
+    "rtl/video/rpg_video.v": "071dddace7f4f77c17e8aa31546a0ac8e0d1add897a75bb58e9f540f7fdacb9b",
+    "rtl/video/vid_timing.v": "81cfc2bdd64e0518a8c52473e801e682a7129261709f756398e34fc40c2806c8",
+    "rtl/video/mon_layer.v": "c107b6f2a6cd20eba2caa08dfdf365bbd9c820198d4eb6188cd365886d6fb708",
+    "rtl/video/hdmi_tx.v": "839fbc8bafedc518d65d78bf5d703aa23b26c8998c9d2940330118ecc6cf1423"
+  },
+  "sources_changed_during_run": [
+    "rtl/video/hdmi_tx.v"
+  ]
+}

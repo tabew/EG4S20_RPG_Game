@@ -1,0 +1,2 @@
+PASS PCM wrapper parameter/port/serializer routing; legacy aud_req remains inactive
+D:\EG4S20_RPG_Game-main\sim\hdmi_audio\tb_hdmi_pcm_wrapper.v:24: $finish called at 240036000 (1ps)

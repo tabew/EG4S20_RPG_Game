@@ -1,0 +1,1 @@
+PASS: 5024 packets; 1591 stereo samples; generated 1591 samples; video pixels decoded 2733; sample intervals {833: 1060, 834: 530}; HS=128/1056, VS=4/628, DE=800; BCH/InfoFrames/ACR/IEC60958/preambles/guards verified.

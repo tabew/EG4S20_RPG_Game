@@ -1,0 +1,11 @@
+{
+  "cancel_ctrl_cdc_loader": "PASS",
+  "publication_cancel_races": "PASS",
+  "independent_hdmi_profiles": "PASS",
+  "video_profiles": "PASS9benches",
+  "sdram_6ns_9ns": "PASS",
+  "framebuffer_compared_pixels": 2764800,
+  "independent_boundary_model": "PASS49536words_each_5.4ns_9ns",
+  "board_vertical_lines_fixed": false,
+  "board_candidate_test_pending": true
+}

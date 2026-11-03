@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "returncode": 0,
+  "verilog": "2001",
+  "raw_key_mapping": "logical K1..K4 = key_n[3]..key_n[0]",
+  "dut_internal_writes": false
+}

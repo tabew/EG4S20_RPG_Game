@@ -1,0 +1,52 @@
+[
+  {
+    "case": "cold_hits",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "ack_guard",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "lru",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "cancel_before",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "cancel_partial",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "cancel_hit",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "cancel_after_raw",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "failures",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "card_epoch",
+    "passed": true,
+    "returncode": 0
+  },
+  {
+    "case": "cancel_reset",
+    "passed": true,
+    "returncode": 0
+  }
+]

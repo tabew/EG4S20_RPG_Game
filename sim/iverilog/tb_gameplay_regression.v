@@ -7,7 +7,7 @@ module tb_gameplay_regression;
     wire [3:0] scene;
     wire [9:0] hp, maxhp, ehp;
     wire [11:0] gold;
-    rpg_core dut(.clk(clk), .rst_n(rst_n), .key(key),
+    rpg_core dut(.clk(clk), .rst_n(rst_n), .key(key), .emergency(1'b0),
                  .dbg_scene(scene), .dbg_hp(hp), .dbg_maxhp(maxhp),
                  .dbg_gold(gold), .dbg_ehp(ehp));
 
@@ -18,7 +18,7 @@ module tb_gameplay_regression;
             while (calm<8 && n<500000) begin
                 @(negedge clk); n=n+1;
                 if (!dut.rendering && !dut.redraw && !dut.alert_pending &&
-                    dut.rstt==0 && dut.bst==0 && !dut.start_battle)
+                    dut.rstt==0 && dut.bst==0 && !dut.start_battle && !dut.splash_v)
                     calm=calm+1;
                 else calm=0;
             end

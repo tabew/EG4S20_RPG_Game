@@ -37,7 +37,6 @@ module rpg_artbase (
             6'd31 : b = 12'd2934;
             6'd32 : b = 12'd3042;
             6'd33 : b = 12'd3150;
-            6'd34 : b = 12'd3258;
             default: b = 12'd0;
         endcase
     end

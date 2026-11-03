@@ -1,0 +1,78 @@
+{
+  "oracle": "forward source rotation then display mirror; integer division by 3; independent ROM arrays",
+  "language": "Verilog-2001 (-g2001 -Wall)",
+  "latency": "sample at P1, public RGB/valid at P3, same as renderer de3",
+  "sha256": {
+    "rtl\\video\\mon_layer.v": "c107b6f2a6cd20eba2caa08dfdf365bbd9c820198d4eb6188cd365886d6fb708",
+    "rtl\\gen\\mon_rom.v": "ba97ce74dddd2915df33b4967cb64844f57d84a8554e6c9d90dff9bc9c46725d",
+    "rtl\\gen\\mon.hex": "cee5a4025d2c6040566813ac71881876fec26b093dab923a2a96f885cc16b582",
+    "rtl\\gen\\monpal.hex": "153667aed673de903ea85de0b4ec56d0c41ab382a44fc130bde77ce7a02025a4",
+    "sim\\monster\\tb_mon_sprite_rgb.v": "a8c19ced9e392f13e619aa29b05c2df26cc0451c5c7f3aa06221e5ec7093f521"
+  },
+  "runs": [
+    {
+      "name": "original_pipeline_failure",
+      "counts": {
+        "configs": 1,
+        "cycles": 21363,
+        "pixels": 20736,
+        "outside": 627,
+        "even": 10368,
+        "odd": 10368,
+        "black": 16767,
+        "nonblack": 3969,
+        "color15": 0,
+        "errors": 666
+      },
+      "seconds": 0.25
+    },
+    {
+      "name": "isolated_palette15_failure",
+      "counts": {
+        "configs": 1,
+        "cycles": 21363,
+        "pixels": 20736,
+        "outside": 627,
+        "even": 10368,
+        "odd": 10368,
+        "black": 15876,
+        "nonblack": 4860,
+        "color15": 153,
+        "errors": 153
+      },
+      "seconds": 0.265
+    },
+    {
+      "name": "palette15_fixed",
+      "counts": {
+        "configs": 1,
+        "cycles": 21363,
+        "pixels": 20736,
+        "outside": 627,
+        "even": 10368,
+        "odd": 10368,
+        "black": 15876,
+        "nonblack": 4860,
+        "color15": 153,
+        "errors": 0
+      },
+      "seconds": 0.266
+    },
+    {
+      "name": "exhaustive",
+      "counts": {
+        "configs": 618,
+        "cycles": 13202318,
+        "pixels": 12814848,
+        "outside": 387470,
+        "even": 6407424,
+        "odd": 6407424,
+        "black": 10257822,
+        "nonblack": 2557026,
+        "color15": 3672,
+        "errors": 0
+      },
+      "seconds": 144.0
+    }
+  ]
+}

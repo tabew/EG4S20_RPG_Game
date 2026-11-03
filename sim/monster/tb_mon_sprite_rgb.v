@@ -14,7 +14,8 @@ module tb_mon_sprite_rgb;
     wire in_win,valid;
     wire [15:0] rgb;
     mon_layer dut(.clk(clk),.rst_n(rst_n),.mon_id(mon_id),.fade(fade),
-        .x(x),.y(y),.in_win(in_win),.rgb(rgb),.valid(valid)
+        .x(x),.y(y),.in_win(in_win),.rgb(rgb),.valid(valid),
+        .jx(5'sd0),.jy(5'sd0)
 `ifndef LEGACY
         ,.rotation(rotation),.mirror(mirror)
 `endif

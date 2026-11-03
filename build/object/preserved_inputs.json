@@ -1,0 +1,10 @@
+{
+  "rtl/common/key_debounce.v": "23c4ad57b7564bfcd49c03879299c4f1f53ba14247a211e2835111e68174a619",
+  "rtl/video/hdmi_tx.v": "2e39a0341567b8a5e196ebf028a320a38c44d149ca57a1c275b682535425bb3b",
+  "rtl/clk_gen.v": "135b13aef830f6c9755d3f68b6087456c31f12ea04a1a5c163f2051ebeebbf18",
+  "rtl/ctrl/rpg_core.v": "d6d292058084821bd133c8f5eb01f1eb504af9b0dd5079a5379873118aceb485",
+  "rtl/gen/mon.hex": "cee5a4025d2c6040566813ac71881876fec26b093dab923a2a96f885cc16b582",
+  "rtl/gen/monpal.hex": "153667aed673de903ea85de0b4ec56d0c41ab382a44fc130bde77ce7a02025a4",
+  "constraints/timing.sdc": "b9f40b07959e2cf2f87fac40c49424b44b135d702730a6b12ac041e070145a9d",
+  "constraints/rpg_pins.adc": "22b963e984688a8653699eded8737d7e2e942068635f6c0744ec42b53b4ba440"
+}

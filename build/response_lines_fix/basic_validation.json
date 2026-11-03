@@ -1,0 +1,130 @@
+{
+  "all_source_inputs_match": true,
+  "source_input_count": 37,
+  "timing_checks": [
+    {
+      "group": "clock: clk50",
+      "endpoints": 10676,
+      "paths": 6932280,
+      "errors": 0,
+      "minimum_period_ns": 9.128,
+      "constraint_period_ns": 20.0
+    },
+    {
+      "group": "clock: clk_memory_feedback40",
+      "endpoints": 0,
+      "paths": 0,
+      "errors": 0,
+      "minimum_period_ns": 0.0,
+      "constraint_period_ns": 25.0
+    },
+    {
+      "group": "clock: clk_p5x",
+      "endpoints": 112,
+      "paths": 170,
+      "errors": 0,
+      "minimum_period_ns": 1.629,
+      "constraint_period_ns": 7.936
+    },
+    {
+      "group": "clock: clk_pix",
+      "endpoints": 9300,
+      "paths": 793783940,
+      "errors": 0,
+      "minimum_period_ns": 24.524,
+      "constraint_period_ns": 39.682
+    },
+    {
+      "group": "clock: clk_ref50",
+      "endpoints": 0,
+      "paths": 0,
+      "errors": 0,
+      "minimum_period_ns": 0.0,
+      "constraint_period_ns": 20.0
+    },
+    {
+      "group": "clock: clk_sdram50",
+      "endpoints": 0,
+      "paths": 0,
+      "errors": 0,
+      "minimum_period_ns": 0.0,
+      "constraint_period_ns": 20.0
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 8,
+      "paths": 14,
+      "errors": 0,
+      "max_delay_ns": 30.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 2.117
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 106,
+      "paths": 106,
+      "errors": 0,
+      "max_delay_ns": 30.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 1.674
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 12,
+      "paths": 12,
+      "errors": 0,
+      "max_delay_ns": 20.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 1.309
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 12,
+      "paths": 12,
+      "errors": 0,
+      "max_delay_ns": 20.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 1.153
+    }
+  ],
+  "resources": {
+    "lut": {
+      "used": 14841,
+      "available": 19600
+    },
+    "reg": {
+      "used": 5382,
+      "available": 19600
+    },
+    "bram": {
+      "used": 45,
+      "available": 64
+    },
+    "bram32k": {
+      "used": 16,
+      "available": 16
+    },
+    "dsp": {
+      "used": 17,
+      "available": 29
+    },
+    "pll": {
+      "used": 2,
+      "available": 4
+    }
+  },
+  "analysis_scope": "Three internal logic clocks, two handshake payload bounds and two FIFO Gray bounds checked. Reference and forwarded SDRAM clock have no register endpoints. SDRAM external-die IO is verified by manufacturer timing and storage-model simulations, not independent external IO-delay STA; board validation still required.",
+  "board_verified": false,
+  "flash_programmed": false,
+  "video_profile": "CEA640x480p60_VIC1_25200000",
+  "bitstream": {
+    "file": "eg4s20_response_lines.bit",
+    "bytes": 756503,
+    "sha256": "100074ad6e7d89c19291d88509fcdc0c4c4537642fb50cb478df8b934a1f7c10"
+  },
+  "flash_binary": {
+    "file": "eg4s20_response_lines.bin",
+    "bytes": 753435,
+    "sha256": "8e027e9c85bb924a3490035644110977102e0386097ee765c0bd7892ae5b0b64"
+  }
+}

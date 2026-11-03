@@ -1,0 +1,141 @@
+{
+  "all_source_inputs_match": true,
+  "source_input_count": 37,
+  "timing_checks": [
+    {
+      "group": "clock: clk50",
+      "endpoints": 12340,
+      "paths": 6729340,
+      "errors": 0,
+      "minimum_period_ns": 9.036,
+      "constraint_period_ns": 20.0
+    },
+    {
+      "group": "clock: clk_memory_feedback40",
+      "endpoints": 0,
+      "paths": 0,
+      "errors": 0,
+      "minimum_period_ns": 0.0,
+      "constraint_period_ns": 25.0
+    },
+    {
+      "group": "clock: clk_p5x",
+      "endpoints": 112,
+      "paths": 170,
+      "errors": 0,
+      "minimum_period_ns": 1.745,
+      "constraint_period_ns": 7.936
+    },
+    {
+      "group": "clock: clk_pix",
+      "endpoints": 9484,
+      "paths": 837888934,
+      "errors": 0,
+      "minimum_period_ns": 25.195,
+      "constraint_period_ns": 39.682
+    },
+    {
+      "group": "clock: clk_ref50",
+      "endpoints": 0,
+      "paths": 0,
+      "errors": 0,
+      "minimum_period_ns": 0.0,
+      "constraint_period_ns": 20.0
+    },
+    {
+      "group": "clock: clk_sdram50",
+      "endpoints": 0,
+      "paths": 0,
+      "errors": 0,
+      "minimum_period_ns": 0.0,
+      "constraint_period_ns": 20.0
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 8,
+      "paths": 14,
+      "errors": 0,
+      "max_delay_ns": 30.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 2.237
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 106,
+      "paths": 106,
+      "errors": 0,
+      "max_delay_ns": 30.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 2.078
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 12,
+      "paths": 12,
+      "errors": 0,
+      "max_delay_ns": 20.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 1.403
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 12,
+      "paths": 12,
+      "errors": 0,
+      "max_delay_ns": 20.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 1.251
+    },
+    {
+      "group": "Path Delay",
+      "endpoints": 2,
+      "paths": 2,
+      "errors": 0,
+      "max_delay_ns": 30.0,
+      "min_delay_ns": 0.0,
+      "slowest_path_ns": 1.347,
+      "payload": "framebuffer_zoom_mode"
+    }
+  ],
+  "resources": {
+    "lut": {
+      "used": 15713,
+      "available": 19600
+    },
+    "reg": {
+      "used": 5822,
+      "available": 19600
+    },
+    "bram": {
+      "used": 45,
+      "available": 64
+    },
+    "bram32k": {
+      "used": 16,
+      "available": 16
+    },
+    "dsp": {
+      "used": 17,
+      "available": 29
+    },
+    "pll": {
+      "used": 2,
+      "available": 4
+    }
+  },
+  "analysis_scope": "Three internal logic clocks, two handshake payload bounds and two FIFO Gray bounds checked. Reference and forwarded SDRAM clock have no register endpoints. SDRAM external-die IO is verified by manufacturer timing and storage-model simulations, not independent external IO-delay STA; board validation still required. Extra two-bit zoom payload bound is checked at30ns/max0ns/min; bank and view apply on frame epochs.",
+  "board_verified": false,
+  "flash_programmed": false,
+  "video_profile": "CEA640x480p60_VIC1_25200000",
+  "full_rgb888_zoom_modes": [
+    1,
+    2,
+    4
+  ],
+  "native_output_directory": "D:\\jingsai\\EG4_Runs\\phy_1",
+  "bitstream": {
+    "file": "EG4.bit",
+    "bytes": 756503,
+    "sha256": "92c30c078ce78ba30064f27812e33518e683bc2e3b2a4c942afe0128a2c607d4"
+  }
+}
